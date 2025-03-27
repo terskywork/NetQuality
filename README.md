@@ -21,9 +21,13 @@
 - Json输出便于大数据分析
 
 ##### 屏幕截图
-|IPv4测试结果|IPv6测试结果|延迟模式测试结果|
-|---|---|---|
-|![IPv4](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/v4_cn.png)|![IPv6](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/v6_cn.png)|![Ping](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/ping_cn.png)|
+|IPv4测试结果|IPv6测试结果|
+| ---------------- | ---------------- |
+|![IPv4](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/v4_cn.png)|![IPv6](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/v6_cn.png)|
+
+|延迟模式测试结果|完整路由模式测试结果|
+| ---------------- | ---------------- |
+|![Ping](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/ping_cn.png)|![Route](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/route_v4.png)|
 
 
 ## 使用方法
@@ -49,6 +53,12 @@ bash <(curl -Ls Net.Check.Place) -6
 ````bash
 bash <(curl -Ls Net.Check.Place) -P
 ````
+
+##### 完整路由模式：
+
+```bash
+bash <(curl -Ls Net.Check.Place) -R [大陆地区省级行政区名称或中/英文简称]
+```
 
 ##### 低数据模式：
 ````bash
@@ -87,6 +97,8 @@ bash <(curl -Ls Net.Check.Place) -f
 
 
 ## 脚本更新
+
+2025/03/28 00:50 增加-R完整路由模式，增加低数据模式的国际互连延迟测试，修复bugs
 
 2025/03/13 22:40 增加-n参数，跳过OS检测及安装依赖
 
