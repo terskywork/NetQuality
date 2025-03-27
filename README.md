@@ -23,16 +23,16 @@
 ##### 屏幕截图
 |IPv4测试结果|IPv6测试结果|
 | ---------------- | ---------------- |
-|![IPv4](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/v4_cn.png)|![IPv6](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/v6_cn.png)|
+|![IPv4](https://github.com/xykt/NetQuality/raw/main/res/v4_cn.png)|![IPv6](https://github.com/xykt/NetQuality/raw/main/res/v6_cn.png)|
 
 |延迟模式测试结果|完整路由模式测试结果|
 | ---------------- | ---------------- |
-|![Ping](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/ping_cn.png)|![Route](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/route_v4.png)|
+|![Ping](https://github.com/xykt/NetQuality/raw/main/res/ping_cn.png)|![Route](https://github.com/xykt/NetQuality/raw/main/res/route_v4.png)|
 
 
 ## 使用方法
 
-![Help](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/help.png)
+![Help](https://github.com/xykt/NetQuality/raw/main/res/help.png)
 
 ##### 默认双栈检测：
 ````bash
