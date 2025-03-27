@@ -22,9 +22,13 @@
 
 ##### Screenshots
 
-| IPv4 Test Result | IPv6 Test Result | Latency Mode Test Result |
-| ---------------- | ---------------- | ------------------------ |
-|![IPv4](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/v4_en.png)|![IPv6](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/v6_en.png)|![Ping](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/ping_en.png)|
+| IPv4 Test Result | IPv6 Test Result |
+| ---------------- | ---------------- |
+|![IPv4](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/v4_en.png)|![IPv6](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/v6_en.png)|
+
+| Latency Mode Test Result | Full Route Mode Test Result |
+| ---------------- | ---------------- |
+|![Ping](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/ping_en.png)|![Route](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/route_v4.png)|
 
 ## Usage
 
@@ -58,6 +62,12 @@ bash <(curl -Ls Net.Check.Place) -P
 
 ```bash
 bash <(curl -Ls Net.Check.Place) -L
+```
+
+##### Full route mode:
+
+```bash
+bash <(curl -Ls Net.Check.Place) -R [Province]
 ```
 
 ##### Skip specific sections:
@@ -97,6 +107,8 @@ bash <(curl -Ls Net.Check.Place) -f
 ```
 
 ## Script Updates
+
+2025/03/28 00:50 Add -R Full Route Mode, add international delay test to Low Data Mode, fix bugs
 
 2025/03/13 22:40 Add -n for no checking OS & dependencies
 
