@@ -1,5 +1,5 @@
 #!/bin/bash
-script_version="v2025-03-25"
+script_version="v2025-03-28"
 ADLines=0
 check_bash(){
 current_bash_version=$(bash --version|head -n 1|awk '{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+\.[0-9]+(\.[0-9]+)?/) print $i}')
@@ -55,6 +55,7 @@ declare -A ctier1
 declare -A cupstream
 declare -A pcode
 declare -A pshort
+declare -A pname
 declare -A pdm
 declare -A presu
 declare -A pavg
@@ -77,7 +78,18 @@ declare -A rww
 declare -A rcn
 declare -A routww
 declare -A routcn
+declare rgia=0
 declare -A AS_MAPPING
+declare -A rmcode
+declare -A rmresu
+declare rmtestnum
+declare -A rmallasn
+declare -A rmallgeo
+declare -A rmmaxhop
+declare -A rmcnhop
+declare -A rmcn
+declare -A rmww
+declare rmgia=0
 declare IPV4
 declare IPV6
 declare IPV4check=1
@@ -111,6 +123,8 @@ declare UA_Browser
 declare ISO3166
 declare display_max_len=80
 declare mode_ping=0
+declare mode_route=0
+declare mode_route_pv=""
 declare mode_low=0
 declare mode_json=0
 declare mode_no=0
@@ -120,19 +134,20 @@ declare ping_test_count=10
 declare pingww_test_count=12
 declare netdata
 shelp_lines=(
-"NETWORK QUALITY CHECK SCRIPT"
+"NETWORK QUALITY CHECK SCRIPT 网络质量体检脚本"
 "Usage: bash <(curl -sL Net.Check.Place) [-4] [-6] [-f] [-h] [-j] [-l cn|en] [-n] [-y] [-L] [-P] [-S 1234567]"
-"            -4                             Test IPv4"
-"            -6                             Test IPv6"
-"            -f                             Show full IP on reports"
-"            -h                             Help information"
-"            -j                             Json output"
-"            -l cn|en                       Specify script language"
-"            -n                             No OS or dependencies check"
-"            -y                             Install dependencies without interupt"
-"            -L                             Low data mode"
-"            -P                             Ping mode"
-"            -S 1234567                     Skip sections by number")
+"            -4               Test IPv4                                  测试IPv4"
+"            -6               Test IPv6                                  测试IPv6"
+"            -f               Show full IP on reports                    报告展示完整IP地址"
+"            -h               Help information                           帮助信息"
+"            -j               JSON output                                JSON输出"
+"            -l cn|en         Specify script language                    指定报告语言"
+"            -n               No OS or dependencies check                跳过系统检测及依赖安装"
+"            -y               Install dependencies without interupt      自动安装依赖"
+"            -L               Low data mode                              低数据模式（跳过测速环节）"
+"            -P               Ping mode                                  三网延迟模式"
+"            -R [Province]    Route mode [Specify Province]              三网完整路由模式[可选指定省份]"
+"            -S 1234567       Skip sections by number                    跳过相应章节")
 shelp=$(printf "%s\n" "${shelp_lines[@]}")
 set_language(){
 case "$LANG" in
@@ -142,6 +157,7 @@ swarn[3]="ERROR: Dependent programs are missing. Please run as root or install s
 swarn[4]="ERROR: Parameter -4 conflicts with -i or -6!"
 swarn[6]="ERROR: Parameter -6 conflicts with -i or -4!"
 swarn[9]="ERROR: It is not allowed to skip all funcions!"
+swarn[21]="ERROR: Wrong province code or name!"
 swarn[40]="ERROR: IPv4 is not available!"
 swarn[60]="ERROR: IPv6 is not available!"
 sinfo[bgp]="Checking BGP database"
@@ -156,6 +172,8 @@ sinfo[delay]="Checking China Mainland TCP Delay"
 sinfo[ldelay]=33
 sinfo[route]="Checking Route to China Mainland"
 sinfo[lroute]=32
+sinfo[moderoute]="Checking Route details to Specified Province"
+sinfo[lmoderoute]=44
 sinfo[speedtest]="Checking Speedtest of China "
 sinfo[lspeedtest]=28
 sinfo[iperf]="Checking Global Transfer of "
@@ -225,6 +243,7 @@ swarn[3]="错误：未安装依赖程序，请以root执行此脚本，或者安
 swarn[4]="错误：参数-4与-i/-6冲突！"
 swarn[6]="错误：参数-6与-i/-4冲突！"
 swarn[9]="错误: 不允许跳过所有功能！"
+swarn[21]="错误: 错误的省份名称或代码！"
 swarn[40]="错误：IPV4不可用！"
 swarn[60]="错误：IPV6不可用！"
 sinfo[bgp]="正在检测BGP数据库 "
@@ -239,6 +258,8 @@ sinfo[delay]="正在检测大陆三网TCP大包延迟"
 sinfo[ldelay]=27
 sinfo[route]="正在检测大陆三网回程线路"
 sinfo[lroute]=24
+sinfo[moderoute]="正在检测TCP回程详细路由"
+sinfo[lmoderoute]=23
 sinfo[speedtest]="正在检测三网Speedtest之"
 sinfo[lspeedtest]=23
 sinfo[iperf]="正在检测国际互连："
@@ -305,10 +326,10 @@ stail[link]="$Font_I报告链接：$Font_U"
 *)echo -ne "ERROR: Language not supported!"
 esac
 }
-countRunTimes() {
-local RunTimes=$(curl ${CurlARG} -s --max-time 10 "https://hits.xykt.de/net?action=hit" 2>&1)
-stail[today]=$(echo "${RunTimes}"|jq '.daily')
-stail[total]=$(echo "${RunTimes}"|jq '.total')
+countRunTimes(){
+local RunTimes=$(curl $CurlARG -s --max-time 10 "https://hits.xykt.de/net?action=hit" 2>&1)
+stail[today]=$(echo "$RunTimes"|jq '.daily')
+stail[total]=$(echo "$RunTimes"|jq '.total')
 }
 show_progress_bar(){
 show_progress_bar_ "$@" 1>&2
@@ -955,20 +976,6 @@ gettcp[qdisc]=$(sysctl -n net.core.default_qdisc 2>/dev/null|awk '{$1=$1};1'||ec
 gettcp[rmem]=$(sysctl -n net.ipv4.tcp_rmem 2>/dev/null|awk '{$1=$1};1'||echo "N/A")
 gettcp[wmem]=$(sysctl -n net.ipv4.tcp_wmem 2>/dev/null|awk '{$1=$1};1'||echo "N/A")
 }
-test_pcn(){
-RESPONSE=$(curl -s https://cdn.jsdelivr.net/gh/xykt/NetQuality@main/ref/province.json)
-while IFS=" " read -r province code short;do
-pcode[$province]=$code
-pshort[$province]=$short
-pcode_lower=$(echo "$code"|tr '[:upper:]' '[:lower:]')
-pdm[${province}14]="$pcode_lower-ct-v4.ip.zstaticcdn.com"
-pdm[${province}24]="$pcode_lower-cu-v4.ip.zstaticcdn.com"
-pdm[${province}34]="$pcode_lower-cm-v4.ip.zstaticcdn.com"
-pdm[${province}16]="$pcode_lower-ct-v6.ip.zstaticcdn.com"
-pdm[${province}26]="$pcode_lower-cu-v6.ip.zstaticcdn.com"
-pdm[${province}36]="$pcode_lower-cm-v6.ip.zstaticcdn.com"
-done < <(echo "$RESPONSE"|jq -r '.[] | select(.province < 70) | "\(.province) \(.code) \(.short)"')
-}
 calculate_delay(){
 local delay=0x2800
 local num1=$1
@@ -1103,7 +1110,6 @@ local temp_info="$Font_Cyan$Font_B${sinfo[delay]}$Font_Suffix"
 show_progress_bar "$temp_info" $((50-${sinfo[ldelay]}))&
 bar_pid="$!"&&disown "$bar_pid"
 trap "kill_progress_bar" RETURN
-test_pcn
 [[ $mode_ping -eq 1 ]]&&ping_test_count=44
 local max_threads=93
 local available_memory=$(free -m|awk '/Mem:/ {print $7}')
@@ -1217,7 +1223,7 @@ fi
 "4809")tresucn="CN2GIA"
 if ((cn_hop>1));then
 [[ $all_asn == *AS23764* ]]&&tresucn="CTGGIA"
-fi
+else
 for ((hop=cn_hop; hop<=max_hop; hop++));do
 [[ ${asns[$hop]} == "4809" || ${asns[$hop]} == "23764" ]]&&continue
 if [[ ${ips[$hop]} == 202.97* ]];then
@@ -1225,15 +1231,9 @@ tresucn="CN2GT"
 fi
 break
 done
+fi
 ;;
 "23764")tresucn="CTGGIA"
-for ((hop=cn_hop; hop<=max_hop; hop++));do
-[[ ${asns[$hop]} == "4809" || ${asns[$hop]} == "23764" ]]&&continue
-if [[ ${ips[$hop]} == 202.97* ]];then
-tresucn="CN2GT"
-fi
-break
-done
 ;;
 "4538")tresucn="CERNET"
 ;;
@@ -1381,7 +1381,7 @@ fi
 "4809")tresucn="CN2GIA"
 if ((cn_hop>1));then
 [[ $all_asn == *AS23764* ]]&&tresucn="CTGGIA"
-fi
+else
 for ((hop=cn_hop; hop<=max_hop; hop++));do
 [[ ${asns[$hop]} == "4809" || ${asns[$hop]} == "23764" ]]&&continue
 if [[ ${ips[$hop]} == 202.97* ]];then
@@ -1389,15 +1389,9 @@ tresucn="CN2GT"
 fi
 break
 done
+fi
 ;;
 "23764")tresucn="CTGGIA"
-for ((hop=cn_hop; hop<=max_hop; hop++));do
-[[ ${asns[$hop]} == "4809" || ${asns[$hop]} == "23764" ]]&&continue
-if [[ ${ips[$hop]} == 202.97* ]];then
-tresucn="CN2GT"
-fi
-break
-done
 ;;
 "4538")tresucn="CERNET"
 ;;
@@ -1440,11 +1434,15 @@ bar_pid="$!"&&disown "$bar_pid"
 trap "kill_progress_bar" RETURN
 local ipv=$1
 local rdomain
-if [[ $ipv == "4" ]];then
-rdomain=("" "219.141.136.10" "114.249.128.1" "112.34.111.194" "202.96.199.133" "211.95.1.97" "211.136.112.50" "113.111.211.22" "211.95.193.97" "120.241.242.225")
-else
-rdomain=("" "2400:89c0:1053:3::69" "2400:89c0:1013:3::54" "2409:8c00:8421:1303::55" "240e:e1:aa00:4000::24" "2408:80f1:21:5003::a" "2409:8c1e:75b0:3003::26" "240e:97c:2f:3000::44" "2408:8756:f50:1001::c" "2409:8c54:871:1001::12")
-fi
+rdomain[1]="bj-ct-v$ipv.ip.zstaticcdn.com"
+rdomain[2]="bj-cu-v$ipv.ip.zstaticcdn.com"
+rdomain[3]="bj-cm-v$ipv.ip.zstaticcdn.com"
+rdomain[4]="sh-ct-v$ipv.ip.zstaticcdn.com"
+rdomain[5]="sh-cu-v$ipv.ip.zstaticcdn.com"
+rdomain[6]="sh-cm-v$ipv.ip.zstaticcdn.com"
+rdomain[7]="gd-ct-v$ipv.ip.zstaticcdn.com"
+rdomain[8]="gd-cu-v$ipv.ip.zstaticcdn.com"
+rdomain[9]="gd-cm-v$ipv.ip.zstaticcdn.com"
 local max_threads=18
 local available_memory=$(free -m|awk '/Mem:/ {print $7}')
 local max_threads_by_memory=$(echo "$available_memory / 28"|bc)
@@ -1471,8 +1469,14 @@ wait)
 while IFS= read -r line;do
 [[ -z $line ]]&&continue
 read -r index rww_value rcn_value <<<"$line"
+[[ $rcn_value == *GIA ]]&&rgia=1
+done <<<"$tmpresult"
+while IFS= read -r line;do
+[[ -z $line ]]&&continue
+read -r index rww_value rcn_value <<<"$line"
 rww["$index"]="$rww_value"
 rcn["$index"]="$rcn_value"
+[[ ${rcn["$index"]} == "CN2GT" && $rgia -eq 1 ]]&&rcn["$index"]="CN2GIA"
 printf -v spaceww "%$((8-${#rww_value}))s" ""
 printf -v spacecn "%$((6-${#rcn_value}))s" ""
 case "$rww_value" in
@@ -1489,14 +1493,399 @@ routww["$index"]="$spaceww$colorww$rww_value$Font_Suffix"
 routcn["$index"]="$colorcn$rcn_value$Font_Suffix$spacecn"
 done <<<"$tmpresult"
 }
+function colorize_latency(){
+local latency_ms=$1
+local total_length=${2:-2}
+local value
+local pure_text
+local padding
+local colored_result
+if [[ ! $latency_ms =~ ^[0-9]+(\.[0-9]+)?ms$ ]];then
+echo ""
+return 1
+fi
+value=$(echo "$latency_ms"|sed 's/ms//')
+if (($(echo "$value <= 150"|bc -l)));then
+colored_result="$Font_Green$latency_ms"
+elif (($(echo "$value <= 240"|bc -l)));then
+colored_result="$Font_Yellow$latency_ms"
+else
+colored_result="$Font_Red$latency_ms"
+fi
+pure_text="$latency_ms"
+pure_length=${#pure_text}
+if ((pure_length<total_length));then
+padding=$((total_length-pure_length))
+colored_result="$(printf "%${padding}s" "")$colored_result"
+fi
+colored_result="$colored_result$Font_Suffix"
+echo -n "$colored_result"
+return 0
+}
 show_route(){
 echo -ne "\r${sroute[title]}\n"
-echo -ne "\r$Font_Cyan${sroute[bj]}${sroute[tcp]}$Font_Green${sroute[ct]}$Font_Suffix ${routww[1]}$Font_Green->$Font_Suffix${routcn[1]} || $Font_Green${sroute[cu]}$Font_Suffix $Font_Suffix${routww[3]}$Font_Green->$Font_Suffix${routcn[3]} || $Font_Green${sroute[cm]}$Font_Suffix $Font_Suffix${routww[5]}$Font_Green->$Font_Suffix${routcn[5]}\n"
-echo -ne "\r$Font_Cyan${sroute[bj]}${sroute[udp]}$Font_Green${sroute[ct]}$Font_Suffix ${routww[2]}$Font_Green->$Font_Suffix${routcn[2]} || $Font_Green${sroute[cu]}$Font_Suffix $Font_Suffix${routww[4]}$Font_Green->$Font_Suffix${routcn[4]} || $Font_Green${sroute[cm]}$Font_Suffix $Font_Suffix${routww[6]}$Font_Green->$Font_Suffix${routcn[6]}\n"
-echo -ne "\r$Font_Cyan${sroute[sh]}${sroute[tcp]}$Font_Green${sroute[ct]}$Font_Suffix ${routww[7]}$Font_Green->$Font_Suffix${routcn[7]} || $Font_Green${sroute[cu]}$Font_Suffix $Font_Suffix${routww[9]}$Font_Green->$Font_Suffix${routcn[9]} || $Font_Green${sroute[cm]}$Font_Suffix $Font_Suffix${routww[11]}$Font_Green->$Font_Suffix${routcn[11]}\n"
-echo -ne "\r$Font_Cyan${sroute[sh]}${sroute[udp]}$Font_Green${sroute[ct]}$Font_Suffix ${routww[8]}$Font_Green->$Font_Suffix${routcn[8]} || $Font_Green${sroute[cu]}$Font_Suffix $Font_Suffix${routww[10]}$Font_Green->$Font_Suffix${routcn[10]} || $Font_Green${sroute[cm]}$Font_Suffix $Font_Suffix${routww[12]}$Font_Green->$Font_Suffix${routcn[12]}\n"
-echo -ne "\r$Font_Cyan${sroute[gz]}${sroute[tcp]}$Font_Green${sroute[ct]}$Font_Suffix ${routww[13]}$Font_Green->$Font_Suffix${routcn[13]} || $Font_Green${sroute[cu]}$Font_Suffix $Font_Suffix${routww[15]}$Font_Green->$Font_Suffix${routcn[15]} || $Font_Green${sroute[cm]}$Font_Suffix $Font_Suffix${routww[17]}$Font_Green->$Font_Suffix${routcn[17]}\n"
-echo -ne "\r$Font_Cyan${sroute[gz]}${sroute[udp]}$Font_Green${sroute[ct]}$Font_Suffix ${routww[14]}$Font_Green->$Font_Suffix${routcn[14]} || $Font_Green${sroute[cu]}$Font_Suffix $Font_Suffix${routww[16]}$Font_Green->$Font_Suffix${routcn[16]} || $Font_Green${sroute[cm]}$Font_Suffix $Font_Suffix${routww[18]}$Font_Green->$Font_Suffix${routcn[18]}\n"
+if [[ $mode_route -eq 0 ]];then
+echo -ne "\r$Font_Cyan北京TCP：$Font_Green电信 $Font_Suffix${routww[1]}$Font_Green->$Font_Suffix${routcn[1]} || $Font_Green联通$Font_Suffix $Font_Suffix${routww[3]}$Font_Green->$Font_Suffix${routcn[3]} || $Font_Green移动$Font_Suffix $Font_Suffix${routww[5]}$Font_Green->$Font_Suffix${routcn[5]}\n"
+echo -ne "\r$Font_Cyan北京UDP：$Font_Green电信 $Font_Suffix${routww[2]}$Font_Green->$Font_Suffix${routcn[2]} || $Font_Green联通$Font_Suffix $Font_Suffix${routww[4]}$Font_Green->$Font_Suffix${routcn[4]} || $Font_Green移动$Font_Suffix $Font_Suffix${routww[6]}$Font_Green->$Font_Suffix${routcn[6]}\n"
+echo -ne "\r$Font_Cyan上海TCP：$Font_Green电信 $Font_Suffix${routww[7]}$Font_Green->$Font_Suffix${routcn[7]} || $Font_Green联通$Font_Suffix $Font_Suffix${routww[9]}$Font_Green->$Font_Suffix${routcn[9]} || $Font_Green移动$Font_Suffix $Font_Suffix${routww[11]}$Font_Green->$Font_Suffix${routcn[11]}\n"
+echo -ne "\r$Font_Cyan上海UDP：$Font_Green电信 $Font_Suffix${routww[8]}$Font_Green->$Font_Suffix${routcn[8]} || $Font_Green联通$Font_Suffix $Font_Suffix${routww[10]}$Font_Green->$Font_Suffix${routcn[10]} || $Font_Green移动$Font_Suffix $Font_Suffix${routww[12]}$Font_Green->$Font_Suffix${routcn[12]}\n"
+echo -ne "\r$Font_Cyan广州TCP：$Font_Green电信 $Font_Suffix${routww[13]}$Font_Green->$Font_Suffix${routcn[13]} || $Font_Green联通$Font_Suffix $Font_Suffix${routww[15]}$Font_Green->$Font_Suffix${routcn[15]} || $Font_Green移动$Font_Suffix $Font_Suffix${routww[17]}$Font_Green->$Font_Suffix${routcn[17]}\n"
+echo -ne "\r$Font_Cyan广州UDP：$Font_Green电信 $Font_Suffix${routww[14]}$Font_Green->$Font_Suffix${routcn[14]} || $Font_Green联通$Font_Suffix $Font_Suffix${routww[16]}$Font_Green->$Font_Suffix${routcn[16]} || $Font_Green移动$Font_Suffix $Font_Suffix${routww[18]}$Font_Green->$Font_Suffix${routcn[18]}\n"
+else
+local tmppv=""
+local tmpfont=""
+local tmpback=""
+local tmpdelay=""
+for ((i=1; i<=rmtestnum; i++));do
+ii=$(printf "%02d" "$i")
+case $((i%3)) in
+1)tmppv="电信"
+tmpfont="$Font_Cyan"
+tmpback="$Back_Cyan"
+;;
+2)tmppv="联通"
+tmpfont="$Font_Green"
+tmpback="$Back_Green"
+;;
+0)tmppv="移动"
+tmpfont="$Font_Purple"
+tmpback="$Back_Purple"
+esac
+echo -ne "\r$tmpback$Font_White$Font_B  ${pname[${rmcode[$i]}]} $tmppv  $Font_Suffix$Back_White$tmpfont$Font_B  ${rmww[$ii]} -> ${rmcn[$ii]}  $Font_Suffix\n"
+echo -ne "\r$Back_Blue$Font_White地理路径：${rmallgeo[$ii]}    自治系统路径：${rmallasn[$ii]} $Font_Suffix\n"
+local varb="${rmmaxhop[$ii]:-0}"
+varb=${varb#0}
+for ((j=1; j<=varb; j++));do
+jj=$(printf "%02d" "$j")
+if [[ -n ${rmresu[$ii${jj}2]} ]];then
+tmpdelay=$(colorize_latency "${rmresu[$ii${jj}1]}" 9)
+if [[ $1 -eq 4 ]];then
+echo -ne "\r$Font_B$(printf '%2s' "$j")$Font_Suffix  $tmpdelay  $(printf '%-13s' "${rmresu[$ii${jj}2]}")$Font_B$(printf '%-10s' "${rmresu[$ii${jj}3]}")$(printf '%-18s' "${rmresu[$ii${jj}4]}")$Font_Suffix${rmresu[$ii${jj}5]}\n"
+else
+echo -ne "\r$Font_B$(printf '%2s' "$j")$Font_Suffix  $tmpdelay  $(printf '%-27s' "${rmresu[$ii${jj}2]}")$Font_B$(printf '%-10s' "${rmresu[$ii${jj}3]}")$Font_Suffix${rmresu[$ii${jj}5]}\n"
+fi
+fi
+done
+done
+fi
+}
+function mask_ip(){
+local ip=$1
+if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]];then
+echo "$ip"|awk -F. '{print $1"."$2".*.*"}'
+elif [[ $ip =~ ^([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}$ ]];then
+echo "$ip"|awk -F: '{
+            # 计算需要保留的段数(总段数8减去要掩码的5段)
+            keep = 8 - 5;
+            for(i=1; i<=NF; i++) {
+                if(i <= keep) {
+                    printf "%s", $i;
+                } else {
+                    printf "*";
+                }
+                if(i < 8) printf ":";
+            }
+            # 处理压缩形式的IPv6(::)
+            if(NF < 8) {
+                for(i=NF+1; i<=8; i++) {
+                    if(i <= keep) {
+                        printf "0";
+                    } else {
+                        printf "*";
+                    }
+                    if(i < 8) printf ":";
+                }
+            }
+        }'
+else
+return 1
+fi
+}
+function extract_region(){
+local input=$1
+IFS=' ' read -ra parts <<<"$input"
+local discard_patterns=("*" "中国" "电信" "联通" "移动")
+local suffixes=("省" "市" "县" "维吾尔自治区" "回族自治区" "壮族自治区" "自治区" "特别行政区")
+for part in "${parts[@]}";do
+if [[ -z $part || $part =~ ^[[:punct:]]+$ || $part == *"."* || $part == *"RFC"* || $part == *"rfc"* || $part == *"Private"* || $part == *"Local"* ]];then
+continue
+fi
+for pattern in "${discard_patterns[@]}";do
+[[ $part == "$pattern" ]]&&continue 2
+done
+for suffix in "${suffixes[@]}";do
+if [[ $part == *"$suffix" ]];then
+part="${part%"$suffix"}"
+break
+fi
+done
+echo "$part"
+return
+done
+echo ""
+}
+nexttrace_route(){
+local domain="$1"
+local rmode="$2"
+local rnum="$3"
+local ipv="$4"
+local tmode
+case "$rmode" in
+1)tmode="--tcp";;
+2)tmode="--udp"
+esac
+local output
+local max_retries=10
+local retry_delay=5
+local retry_count=0
+while [[ $retry_count -lt $max_retries ]];do
+output=$(nexttrace -p 80 -q 10 -"$ipv" "$tmode" --psize 1400 "$domain" 2>/dev/null)
+[[ $output != *"*please try again later*"* && $output == *"traceroute to"* ]]&&break
+retry_count=$((retry_count+1))
+[[ $retry_count -lt $max_retries ]]&&sleep "$retry_delay"
+done
+output=$(echo "$output"|sed 's/\x1b\[[0-9;]*m//g')
+echo "$output"|awk -v rnum="$rnum" '
+    {
+        if ($1 ~ /^[0-9]+$/) {
+            hop = $1
+            ip = $2
+            if (ip != "*") {
+                as = ""
+                bracket = ""
+                desc = ""
+                ms = ""
+                # Extract AS information
+                for (i = 3; i <= NF; i++) {
+                    if ($i ~ /^AS[0-9]+/) {
+                        as = $i
+                    } else if ($i ~ /^\[.*\]$/) {
+                        bracket = $i
+                    } else {
+                        desc = desc " " $i
+                    }
+                }
+                # 去除 desc 开头的空格
+                sub(/^ /, "", desc)
+                # Get the first millisecond value from the next line
+                getline next_line
+                if (next_line ~ /[0-9]+\.[0-9]+ ms/) {
+                    match(next_line, /[0-9]+\.[0-9]+ ms/)
+                    ms = substr(next_line, RSTART, RLENGTH)
+                    gsub(/ /, "", ms)
+                }
+                # Print the formatted result
+                printf "|%s|%s|%s|%s|%s|%s|%s|\n", rnum, hop, ms, ip, as, bracket, desc
+            }
+        }
+    }'
+}
+get_route_mode(){
+ibar_step=19
+local temp_info="$Font_Cyan$Font_B${sinfo[moderoute]}$Font_Suffix"
+((ibar_step+=1))
+show_progress_bar "$temp_info" $((50-${sinfo[lmoderoute]}))&
+bar_pid="$!"&&disown "$bar_pid"
+trap "kill_progress_bar" RETURN
+local ipv=$1
+local rdomain
+rmresu=()
+rmcode[0]=31
+if [[ -z $mode_route_pv ]];then
+rmtestnum=9
+rmcode[1]=11
+rmcode[2]=11
+rmcode[3]=11
+rmcode[4]=31
+rmcode[5]=31
+rmcode[6]=31
+rmcode[7]=44
+rmcode[8]=44
+rmcode[9]=44
+rdomain[0]="sh-ct-v$ipv.ip.zstaticcdn.com"
+rdomain[1]="bj-ct-v$ipv.ip.zstaticcdn.com"
+rdomain[2]="bj-cu-v$ipv.ip.zstaticcdn.com"
+rdomain[3]="bj-cm-v$ipv.ip.zstaticcdn.com"
+rdomain[4]="sh-ct-v$ipv.ip.zstaticcdn.com"
+rdomain[5]="sh-cu-v$ipv.ip.zstaticcdn.com"
+rdomain[6]="sh-cm-v$ipv.ip.zstaticcdn.com"
+rdomain[7]="gd-ct-v$ipv.ip.zstaticcdn.com"
+rdomain[8]="gd-cu-v$ipv.ip.zstaticcdn.com"
+rdomain[9]="gd-cm-v$ipv.ip.zstaticcdn.com"
+else
+rmtestnum=3
+rmcode[1]="$mode_route_pv"
+rmcode[2]="$mode_route_pv"
+rmcode[3]="$mode_route_pv"
+rdomain[0]="sh-ct-v$ipv.ip.zstaticcdn.com"
+rdomain[1]="${pcode[$mode_route_pv]}-ct-v$ipv.ip.zstaticcdn.com"
+rdomain[2]="${pcode[$mode_route_pv]}-cu-v$ipv.ip.zstaticcdn.com"
+rdomain[3]="${pcode[$mode_route_pv]}-cm-v$ipv.ip.zstaticcdn.com"
+fi
+local max_threads=18
+local available_memory=$(free -m|awk '/Mem:/ {print $7}')
+local max_threads_by_memory=$(echo "$available_memory / 28"|bc)
+((max_threads_by_memory<max_threads))&&max_threads=$max_threads_by_memory
+local current_threads=0
+local tmpresult=$(for i in $(seq 0 $rmtestnum)
+do
+local protocol=1
+nexttrace_route "${rdomain[$i]}" "$protocol" "$i" "$ipv"&
+((current_threads++))
+if ((current_threads>=max_threads));then
+wait -n
+((current_threads--))
+else
+sleep 2
+fi
+done
+wait)
+rmmaxhop=()
+rmcnhop=()
+rmallasn=()
+rmallgeo=()
+while IFS= read -r line;do
+[[ -z $line ]]&&continue
+IFS='|' read -ra fields <<<"$line"
+i1=$(printf "%02d" "${fields[1]}")
+i2=$(printf "%02d" "${fields[2]}")
+rmresu["$i1${i2}1"]="${fields[3]}"
+rmresu["$i1${i2}2"]=$(mask_ip "${fields[4]}")
+rmresu["$i1${i2}3"]="${fields[5]}"
+rmresu["$i1${i2}4"]="${fields[6]}"
+rmresu["$i1${i2}5"]="${fields[7]}"
+rmresu["$i1${i2}6"]=$(extract_region "${rmresu[$i1${i2}5]}")
+[[ ${rmresu["$i1${i2}2"]} == 59.43.* ]]&&rmresu["$i1${i2}3"]="AS4809"
+[[ ${rmresu["$i1${i2}5"]} == *CTGNet* ]]&&rmresu["$i1${i2}3"]="AS23764"
+if [[ -z ${rmcnhop["$i1"]} ]]&&[[ ${rmresu["$i1${i2}5"]} == *中国* ]]&&[[ ${rmresu["$i1${i2}5"]} != *香港* ]]&&[[ ${rmresu["$i1${i2}5"]} != *澳门* ]]&&[[ ${rmresu["$i1${i2}5"]} != *台湾* ]];then
+rmcnhop["$i1"]="$i2"
+fi
+if [[ -n ${rmresu[$i1${i2}6]} ]];then
+if [[ ${rmallgeo[$i1]} == *"${rmresu[$i1${i2}6]}"* ]];then
+rmallgeo[$i1]="${rmallgeo[$i1]%${rmresu[$i1${i2}6]}*}${rmresu[$i1${i2}6]}"
+else
+[[ -n ${rmallgeo[$i1]} ]]&&rmallgeo[$i1]="${rmallgeo[$i1]} -> "
+rmallgeo[$i1]="${rmallgeo[$i1]}${rmresu[$i1${i2}6]}"
+fi
+fi
+if [[ ${rmallgeo[$i1]} != *"${rmresu[$i1${i2}6]}" ]];then
+[[ -n ${rmallgeo[$i1]} ]]&&rmallgeo[$i1]="${rmallgeo[$i1]} -> "
+rmallgeo[$i1]="${rmallgeo[$i1]}${rmresu[$i1${i2}6]}"
+fi
+if [[ -n ${rmresu["$i1${i2}3"]} && ${rmallasn[$i1]} != *"${rmresu[$i1${i2}3]}" ]];then
+[[ -n ${rmallasn["$i1"]} ]]&&rmallasn["$i1"]="${rmallasn["$i1"]} -> "
+rmallasn["$i1"]="${rmallasn["$i1"]}${rmresu[$i1${i2}3]}"
+fi
+local vara=${i2#0}
+local varb="${rmmaxhop["$i1"]:-0}"
+varb=${varb#0}
+if ((vara>varb));then
+rmmaxhop["$i1"]="$i2"
+fi
+done <<<"$tmpresult"
+rmcn=()
+rmww=()
+for i in $(seq 0 $rmtestnum);do
+ii=$(printf "%02d" "$i")
+rmcn[$ii]="Unknown"
+rmww[$ii]="Unknown"
+[[ ${rmcnhop[$ii]} == 0 || ${rmcnhop[$ii]} == ${rmmaxhop[$ii]} ]]&&rmcn[$ii]="Hidden"
+local vara="${rmcnhop[$ii]:-0}"
+vara=${vara#0}
+[[ ${rmresu[$ii${rmcnhop[$ii]}3]} == "AS17676" ]]&&rmcnhop[$ii]=$(printf "%02d" "$((vara+1))")
+case "${rmresu[$ii${rmcnhop[$ii]}3]}" in
+"AS4134")rmcn[$ii]="163"
+;;
+"AS4837")rmcn[$ii]="4837"
+local vara="${rmcnhop[$ii]:-0}"
+vara=${vara#0}
+if ((vara>1));then
+varb=$(printf "%02d" "$((vara-1))")
+[[ ${rmresu[$ii${varb}3]} == "AS10099" ]]&&rmcn[$ii]="10099"
+fi
+;;
+"AS58453")rmcn[$ii]="CMI"
+;;
+"AS58807")rmcn[$ii]="CMIN2"
+;;
+"AS9808")rmcn[$ii]="CMI"
+[[ ${rmallasn[$ii]} == *AS58807* ]]&&rmcn[$ii]="CMIN2"
+;;
+"AS9929")rmcn[$ii]="9929"
+;;
+"AS10099")rmcn[$ii]="10099"
+[[ ${rmallasn[$ii]} == *AS9929* ]]&&rmcn[$ii]="9929"
+;;
+"AS4809")rmcn[$ii]="CN2GIA"
+local vara="${rmcnhop[$ii]:-0}"
+local varb="${rmmaxhop[$ii]:-0}"
+vara=${vara#0}
+varb=${varb#0}
+if ((vara>1));then
+[[ ${rmallasn[$ii]} == *AS23764* ]]&&rmcn[$ii]="CTGGIA"
+fi
+if [[ $rmgia -ne 1 ]];then
+for ((thop=vara; thop<=varb; thop++));do
+hop=$(printf "%02d" "$thop")
+[[ ${rmresu[$ii${hop}3]} == "AS4809" || ${rmresu[$ii${hop}3]} == "AS23764" ]]&&continue
+if [[ ${rmresu[$ii${hop}2]} == 202.97* ]];then
+rmcn[$ii]="CN2GT"
+fi
+break
+done
+fi
+;;
+"AS23764")rmcn[$ii]="CTGGIA"
+if [[ $rmgia -ne 1 ]];then
+local vara="${rmcnhop[$ii]:-0}"
+local varb="${rmmaxhop[$ii]:-0}"
+vara=${vara#0}
+varb=${varb#0}
+for ((thop=vara; thop<=varb; thop++));do
+hop=$(printf "%02d" "$thop")
+[[ ${rmresu[$ii${hop}3]} == "AS4809" || ${rmresu[$ii${hop}3]} == "AS23764" ]]&&continue
+if [[ ${rmresu[$ii${hop}2]} == 202.97* ]];then
+rmcn[$ii]="CN2GT"
+fi
+break
+done
+fi
+;;
+"AS4538")rmcn[$ii]="CERNET"
+;;
+"AS7497")rmcn[$ii]="CSTNET"
+;;
+*)rmcn[$ii]="NoData"
+if [[ ${rmallasn[$ii]} == *AS58807* ]];then
+rmcn[$ii]="CMIN2"
+elif [[ ${rmallasn[$ii]} == *AS9929* ]];then
+rmcn[$ii]="9929"
+elif [[ ${rmallasn[$ii]} == *AS10099* ]];then
+rmcn[$ii]="10099"
+elif [[ ${rmallasn[$ii]} == *AS4809* ]];then
+rmcn[$ii]="CN2"
+elif [[ ${rmallasn[$ii]} == *AS9808* ]];then
+rmcn[$ii]="CMI"
+elif [[ ${rmallasn[$ii]} == *AS4134* ]];then
+rmcn[$ii]="163"
+elif [[ ${rmallasn[$ii]} == *AS4837* ]];then
+rmcn[$ii]="4837"
+fi
+esac
+[[ ${rmcn[$ii]} == *GIA ]]&&rmgia=1
+local vara="${rmcnhop[$ii]:-0}"
+vara=${vara#0}
+for ((thop=vara-1; thop>0; thop--));do
+hop=$(printf "%02d" "$thop")
+if [[ -n ${rmresu[$ii${hop}3]} && ${rmresu[$ii${hop}3]} != "AS58453" && ${rmresu[$ii${hop}3]} != "AS58807" && ${rmresu[$ii${hop}3]} != "AS4837" && ${rmresu[$ii${hop}3]} != "AS10099" && ${rmresu[$ii${hop}3]} != "AS9929" && ${rmresu[$ii${hop}3]} != "AS4134" && ${rmresu[$ii${hop}3]} != "AS4809" && ${rmresu[$ii${hop}3]} != "AS4808" && ${rmresu[$ii${hop}3]} != "AS23764" && ${rmresu[$ii${hop}3]} != "AS4538" && ${rmresu[$ii${hop}3]} != "AS7497" ]];then
+rmww[$ii]="${rmresu[$ii${hop}3]}"
+break
+fi
+done
+if [[ -n ${rmww[$ii]} ]];then
+[[ -n ${AS_MAPPING[${rmww[$ii]}]} ]]&&rmww[$ii]="${AS_MAPPING[${rmww[$ii]}]}"
+fi
+done
 }
 parse_iperf3_result(){
 local server=$1
@@ -1655,7 +2044,11 @@ tmp_space=$((10-${#icity[$key]}*2))
 else
 tmp_space=$((10-${#icity[$key]}))
 fi
+if [[ $mode_low -eq 1 ]];then
+iresu[$key]="$Font_Cyan${icity[$key]}$(printf "%${tmp_space}s\n")${midresu[$key$ipv]}        ${Font_Green}SKIP$Font_Suffix        "
+else
 iresu[$key]="$Font_Cyan${icity[$key]}$(printf "%${tmp_space}s\n")${midresu[$key$ipv]}$(convert_b2m ${isout[$key${ipv}1]})$(convert_retr ${isout[$key${ipv}2]})$(convert_b2m ${isout[$key${ipv}3]})$(convert_retr ${isout[$key${ipv}4]})"
+fi
 done
 }
 iperf_test(){
@@ -1674,6 +2067,7 @@ iportl["$code"]="$portl"
 iportu["$code"]="$portu"
 done < <(echo "$json_data"|jq -r '.[] | "\(.code) \(.server) \(.portl) \(.portu) \(.city) \(.cityzh)"')
 local keys=($(echo "${!icity[@]}"|tr ' ' '\n'|sort -n))
+if [[ $mode_low -eq 0 ]];then
 for key in "${keys[@]}";do
 parse_iperf3_result "${idm[$key]}" ${iportl[$key]} ${iportu[$key]} $ipv 0 "${icity[$key]}${siperf[send]}"
 isout["$key${ipv}1"]=${iperfresu[s]}
@@ -1682,6 +2076,7 @@ parse_iperf3_result "${idm[$key]}" ${iportl[$key]} ${iportu[$key]} $ipv 1 "${ici
 isout["$key${ipv}3"]=${iperfresu[s]}
 isout["$key${ipv}4"]=${iperfresu[r]}
 done
+fi
 local temp_info="$Font_Cyan$Font_B${sinfo[delayww]}$Font_Suffix"
 ((ibar_step+=2))
 show_progress_bar "$temp_info" $((50-${sinfo[ldelayww]}))&
@@ -1956,13 +2351,22 @@ show_conn(){
 echo -ne "\r${sconn[title]}\n"
 if [[ ${conn[ix]} -eq 99 ]];then
 echo -ne "\r$Font_Cyan${sconn[ix]}$Font_Green$(printf '%-10s' "${conn[ix]}+")"
+elif [[ ${conn[ix]} -eq -1 ]];then
+echo -ne "\r$Font_Cyan${sconn[ix]}$Font_Green$(printf '%-10s' "-")"
 else
 echo -ne "\r$Font_Cyan${sconn[ix]}$Font_Green$(printf '%-10s' "${conn[ix]}")"
 fi
 if [[ ${conn[upstreams]} -eq -2 ]];then
-echo -ne "$Font_Cyan${sconn[upstreams]}${Font_Green}Transit-Free  $Font_Cyan${sconn[peers]}$Font_Green${conn[peers]}$Font_Suffix\n"
+echo -ne "$Font_Cyan${sconn[upstreams]}${Font_Green}Transit-Free  \n"
+elif [[ ${conn[upstreams]} -eq -1 ]];then
+echo -ne "$Font_Cyan${sconn[upstreams]}$Font_Green$(printf '%-10s' "-")"
 else
-echo -ne "$Font_Cyan${sconn[upstreams]}$Font_Green$(printf '%-10s' "${conn[upstreams]}")$Font_Cyan${sconn[peers]}$Font_Green${conn[peers]}$Font_Suffix\n"
+echo -ne "$Font_Cyan${sconn[upstreams]}$Font_Green$(printf '%-10s' "${conn[upstreams]}")"
+fi
+if [[ ${conn[peers]} -eq -1 ]];then
+echo -ne "$Font_Cyan${sconn[peers]}$Font_Green-$Font_Suffix\n"
+else
+echo -ne "$Font_Cyan${sconn[peers]}$Font_Green${conn[peers]}$Font_Suffix\n"
 fi
 local clenth=0
 conn[asn]=""
@@ -2019,46 +2423,78 @@ echo -ne "\r$Font_I${stail[stoday]}${stail[today]}${stail[stotal]}${stail[total]
 echo -e ""
 }
 get_opts(){
-while getopts "l:S:fhjnyLP46" opt;do
-case $opt in
-4)if
+while [[ $# -gt 0 ]];do
+case "$1" in
+-4)if
 [[ IPV4check -ne 0 ]]
 then
 IPV6check=0
 else
 ERRORcode=4
 fi
+shift
 ;;
-6)if
+-6)if
 [[ IPV6check -ne 0 ]]
 then
 IPV4check=0
 else
 ERRORcode=6
 fi
+shift
 ;;
-f)fullIP=1
+-f)fullIP=1
+shift
 ;;
-h)show_help
+-h)show_help
+shift
 ;;
-j)mode_json=1
+-j)mode_json=1
+shift
 ;;
-l)LANG=$OPTARG
+-l)shift
+LANG="$1"
+shift
 ;;
-n)mode_no=1
+-n)mode_no=1
+shift
 ;;
-y)mode_yes=1
+-y)mode_yes=1
+shift
 ;;
-L)mode_low=1
+-L)mode_low=1
+shift
 ;;
-P)mode_ping=1
+-P)mode_ping=1
+shift
 ;;
-S)mode_skip="$OPTARG"
+-R)mode_route=1
+shift
+if [[ $# -gt 0 && $1 != -* ]];then
+mode_route_pv=$(echo "$1"|tr '[:upper:]' '[:lower:]'|sed 's/省//g; s/市//g; s/县//g; s/维吾尔//g; s/回族//g; s/壮族//g; s/自治区//g; s/特别行政区//g')
+shift
+fi
 ;;
-\?)ERRORcode=1
+-S)shift
+if [[ $# -gt 0 ]];then
+mode_skip="$1"
+shift
+else
+ERRORcode=1
+fi
+;;
+-*)ERRORcode=1
+shift
+;;
+*)shift
 esac
 done
-[[ $mode_skip == *"1"* && $mode_skip == *"2"* && $mode_skip == *"3"* && $mode_skip == *"4"* && ($mode_ping -eq 1 || $mode_skip == *"5"*) && ($mode_ping -eq 1 || $mode_low -eq 1 || $mode_skip == *"6"*) && ($mode_ping -eq 1 || $mode_low -eq 1 || $mode_skip == *"7"*) ]]&&ERRORcode=9
+[[ $mode_ping -eq 1 ]]&&mode_skip+="567"
+[[ $mode_low -eq 1 ]]&&mode_skip+="6"
+[[ $mode_route -eq 1 ]]&&mode_skip+="467"
+[[ $mode_ping -eq 1 && $mode_skip == *"4"* ]]&&ERRORcode=9
+[[ $mode_route -eq 1 && $mode_skip == *"5"* ]]&&ERRORcode=9
+[[ $mode_skip == *"1"* && $mode_skip == *"2"* && $mode_skip == *"3"* && $mode_skip == *"4"* && $mode_skip == *"5"* && $mode_skip == *"6"* && $mode_skip == *"7"* ]]&&ERRORcode=9
 [[ $IPV4check -eq 1 && $IPV6check -eq 0 && $IPV4work -eq 0 ]]&&ERRORcode=40
 [[ $IPV4check -eq 0 && $IPV6check -eq 1 && $IPV6work -eq 0 ]]&&ERRORcode=60
 CurlARG="$useNIC$usePROXY"
@@ -2075,18 +2511,31 @@ echo -e "$aad1"
 }
 read_ref(){
 ISO3166=$(curl -sL -m 10 "https://cdn.jsdelivr.net/gh/xykt/NetQuality@main/ref/iso3166.json")
-RESPONSE=$(curl -s "https://cdn.jsdelivr.net/gh/xykt/NetQuality@main/ref/province.json")
-while IFS=" " read -r province code short;do
+RESPONSE=$(curl -s https://cdn.jsdelivr.net/gh/xykt/NetQuality@main/ref/province.json)
+while IFS=" " read -r province code short name;do
 pcode[$province]=$code
 pshort[$province]=$short
+pname[$province]=$(echo "$name"|sed -E 's/(省|市|自治区|维吾尔|壮族|回族)//g')
 pcode_lower=$(echo "$code"|tr '[:upper:]' '[:lower:]')
-pct[${province}4]="$pcode_lower-ct-v4.ip.zstaticcdn.com"
-pcu[${province}4]="$pcode_lower-cu-v4.ip.zstaticcdn.com"
-pcm[${province}4]="$pcode_lower-cm-v4.ip.zstaticcdn.com"
-pct[${province}6]="$pcode_lower-ct-v6.ip.zstaticcdn.com"
-pcu[${province}6]="$pcode_lower-cu-v6.ip.zstaticcdn.com"
-pcm[${province}6]="$pcode_lower-cm-v6.ip.zstaticcdn.com"
-done < <(echo "$RESPONSE"|jq -r '.[] | select(.province < 70) | "\(.province) \(.code) \(.short)"')
+pdm[${province}14]="$pcode_lower-ct-v4.ip.zstaticcdn.com"
+pdm[${province}24]="$pcode_lower-cu-v4.ip.zstaticcdn.com"
+pdm[${province}34]="$pcode_lower-cm-v4.ip.zstaticcdn.com"
+pdm[${province}16]="$pcode_lower-ct-v6.ip.zstaticcdn.com"
+pdm[${province}26]="$pcode_lower-cu-v6.ip.zstaticcdn.com"
+pdm[${province}36]="$pcode_lower-cm-v6.ip.zstaticcdn.com"
+done < <(echo "$RESPONSE"|jq -r '.[] | select(.province < 70) | "\(.province) \(.code) \(.short) \(.name)"')
+if [[ -n $mode_route_pv ]];then
+lower_optarg="$mode_route_pv"
+mode_route_pv=""
+for province in "${!pcode[@]}";do
+lower_pcode=$(echo "${pcode[$province]}"|tr '[:upper:]' '[:lower:]')
+if [[ $lower_optarg == "$lower_pcode" || $lower_optarg == "${pshort[$province]}" || $lower_optarg == "${pname[$province]}" ]];then
+mode_route_pv="$province"
+break
+fi
+done
+[[ -z $mode_route_pv ]]&&ERRORcode=21
+fi
 while read -r as name;do
 AS_MAPPING["$as"]="$name"
 done < <(curl -s "https://raw.githubusercontent.com/xykt/NetQuality/refs/heads/main/ref/AS_Mapping.txt")
@@ -2235,9 +2684,10 @@ getnat=()
 [[ $mode_skip != *"2"* && $2 -eq 4 ]]&&get_nat
 [[ $mode_skip != *"2"* ]]&&get_tcp
 [[ $mode_skip != *"4"* ]]&&get_delay $2
-[[ $mode_ping -eq 0 && $mode_skip != *"5"* ]]&&get_route $2
-[[ $mode_ping -eq 0 && $mode_low -eq 0 && $mode_skip != *"6"* && $2 -eq 4 ]]&&speedtest_test
-[[ $mode_ping -eq 0 && $mode_low -eq 0 && $mode_skip != *"7"* ]]&&iperf_test $2
+[[ $mode_skip != *"5"* && $mode_route -eq 0 ]]&&get_route $2
+[[ $mode_skip != *"5"* && $mode_route -eq 1 ]]&&get_route_mode $2
+[[ $mode_skip != *"6"* && $2 -eq 4 ]]&&speedtest_test
+[[ $mode_skip != *"7"* ]]&&iperf_test $2
 echo -ne "$Font_LineClear"
 if [ $2 -eq 4 ]||[[ $IPV4work -eq 0 || $IPV4check -eq 0 ]];then
 for ((i=0; i<ADLines; i++));do
@@ -2250,9 +2700,9 @@ local net_report=$(show_head
 [[ $mode_skip != *"2"* ]]&&show_local
 [[ $mode_skip != *"3"* ]]&&show_conn
 [[ $mode_skip != *"4"* ]]&&show_delay
-[[ $mode_ping -eq 0 && $mode_skip != *"5"* ]]&&show_route
-[[ $mode_ping -eq 0 && $mode_low -eq 0 && $mode_skip != *"6"* && $2 -eq 4 ]]&&show_speedtest
-[[ $mode_ping -eq 0 && $mode_low -eq 0 && $mode_skip != *"7"* ]]&&show_iperf
+[[ $mode_skip != *"5"* ]]&&show_route $2
+[[ $mode_skip != *"6"* && $2 -eq 4 ]]&&show_speedtest
+[[ $mode_skip != *"7"* ]]&&show_iperf
 show_tail)
 [[ mode_json -eq 0 ]]&&echo -ne "\r$net_report\n"
 [[ mode_json -eq 1 ]]&&save_json $2
@@ -2267,11 +2717,11 @@ is_valid_ipv6 $IPV6
 get_opts "$@"
 [[ mode_no -eq 0 ]]&&install_dependencies
 set_language
+read_ref
 if [[ $ERRORcode -ne 0 ]];then
 echo -ne "\r$Font_B$Font_Red${swarn[$ERRORcode]}$Font_Suffix\n"
 exit $ERRORcode
 fi
 clear
-read_ref
 [[ $IPV4work -ne 0 && $IPV4check -ne 0 ]]&&check_Net "$IPV4" 4
 [[ $IPV6work -ne 0 && $IPV6check -ne 0 ]]&&check_Net "$IPV6" 6
