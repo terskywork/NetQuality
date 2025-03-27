@@ -24,15 +24,15 @@
 
 | IPv4 Test Result | IPv6 Test Result |
 | ---------------- | ---------------- |
-|![IPv4](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/v4_en.png)|![IPv6](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/v6_en.png)|
+|![IPv4](https://github.com/xykt/NetQuality/raw/main/res/v4_en.png)|![IPv6](https://github.com/xykt/NetQuality/raw/main/res/v6_en.png)|
 
 | Latency Mode Test Result | Full Route Mode Test Result |
 | ---------------- | ---------------- |
-|![Ping](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/ping_en.png)|![Route](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/route_v4.png)|
+|![Ping](https://github.com/xykt/NetQuality/raw/main/res/ping_en.png)|![Route](https://github.com/xykt/NetQuality/raw/main/res/route_v4.png)|
 
 ## Usage
 
-![Help](https://github.com/xykt/NetQuality/raw/refs/heads/main/res/help.png)
+![Help](https://github.com/xykt/NetQuality/raw/main/res/help.png)
 
 ##### Default dual-stack detection:
 
