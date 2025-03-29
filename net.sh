@@ -1,5 +1,5 @@
 #!/bin/bash
-script_version="v2025-03-28"
+script_version="v2025-03-29"
 ADLines=0
 check_bash(){
 current_bash_version=$(bash --version|head -n 1|awk '{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+\.[0-9]+(\.[0-9]+)?/) print $i}')
@@ -1607,7 +1607,7 @@ IFS=' ' read -ra parts <<<"$input"
 local discard_patterns=("*" "中国" "电信" "联通" "移动")
 local suffixes=("省" "市" "县" "维吾尔自治区" "回族自治区" "壮族自治区" "自治区" "特别行政区")
 for part in "${parts[@]}";do
-if [[ -z $part || $part =~ ^[[:punct:]]+$ || $part == *"."* || $part == *"RFC"* || $part == *"rfc"* || $part == *"Private"* || $part == *"Local"* ]];then
+if [[ -z $part || $part =~ ^[[:punct:]]+$ || $part == *"."* || $part == *"RFC"* || $part == *"rfc"* || $part == *"Private"* || $part == *"Local"* || $part == *"DOD"* || $part == *"故障"* || $part == *"错误"* ]];then
 continue
 fi
 for pattern in "${discard_patterns[@]}";do
