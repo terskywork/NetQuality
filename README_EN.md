@@ -1,6 +1,6 @@
 <p align="center">
-<img src="https://hits.xykt.de/net.svg?action=view&count_bg=%2379C83D&title_bg=%23555555&title=Runs&edge_flat=false&ts=${new Date().getTime()}"/> 
-<img src="https://hits.xykt.de/net_github.svg?action=hit&count_bg=%233DC8C0&title_bg=%23555555&title=Visits&edge_flat=false&ts=${new Date().getTime()}"/> 
+<img src="https://hits.xykt.de/net.svg?action=view&count_bg=%2379C83D&title_bg=%23555555&title=Runs&edge_flat=false"/> 
+<img src="https://hits.xykt.de/net_github.svg?action=hit&count_bg=%233DC8C0&title_bg=%23555555&title=Visits&edge_flat=false"/> 
 <a href="/LICENSE"><img src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" alt="license" /></a>  
 </p>
 
@@ -64,10 +64,22 @@ bash <(curl -Ls Net.Check.Place) -P
 bash <(curl -Ls Net.Check.Place) -L
 ```
 
-##### Full route mode:
+##### Full route mode (TCP result in Chinese):
 
 ```bash
 bash <(curl -Ls Net.Check.Place) -R [Province]
+```
+Test Beijing & Shanghai & Guangdong by default:
+```bash
+bash <(curl -Ls Net.Check.Place) -R
+```
+Specify parameters to detect the corresponding province (Any of the following):
+```bash
+bash <(curl -Ls Net.Check.Place) -R 桂
+bash <(curl -Ls Net.Check.Place) -R 广西
+bash <(curl -Ls Net.Check.Place) -R 广西壮族自治区
+bash <(curl -Ls Net.Check.Place) -R GX
+bash <(curl -Ls Net.Check.Place) -R gx
 ```
 
 ##### Skip specific sections:
