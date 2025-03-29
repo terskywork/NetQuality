@@ -1,6 +1,6 @@
 <p align="center">
-<img src="https://hits.xykt.de/net.svg?action=view&count_bg=%2379C83D&title_bg=%23555555&title=Runs&edge_flat=false&ts=${new Date().getTime()}"/> 
-<img src="https://hits.xykt.de/net_github.svg?action=hit&count_bg=%233DC8C0&title_bg=%23555555&title=Visits&edge_flat=false&ts=${new Date().getTime()}"/> 
+<img src="https://hits.xykt.de/net.svg?action=view&count_bg=%2379C83D&title_bg=%23555555&title=Runs&edge_flat=false"/> 
+<img src="https://hits.xykt.de/net_github.svg?action=hit&count_bg=%233DC8C0&title_bg=%23555555&title=Visits&edge_flat=false"/> 
 <a href="/LICENSE"><img src="https://img.shields.io/badge/License-AGPL%20v3-blue.svg" alt="license" /></a>  
 </p>
 
@@ -54,10 +54,21 @@ bash <(curl -Ls Net.Check.Place) -6
 bash <(curl -Ls Net.Check.Place) -P
 ````
 
-##### 完整路由模式：
-
+##### 完整路由模式（TCP大包）：
 ```bash
 bash <(curl -Ls Net.Check.Place) -R [大陆地区省级行政区名称或中/英文简称]
+```
+缺省状态默认检测北京、上海、广东三地
+```bash
+bash <(curl -Ls Net.Check.Place) -R
+```
+指定参数可检测任意大陆省级行政区（以下任选其一）
+```bash
+bash <(curl -Ls Net.Check.Place) -R 桂
+bash <(curl -Ls Net.Check.Place) -R 广西
+bash <(curl -Ls Net.Check.Place) -R 广西壮族自治区
+bash <(curl -Ls Net.Check.Place) -R GX
+bash <(curl -Ls Net.Check.Place) -R gx
 ```
 
 ##### 低数据模式：
