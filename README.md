@@ -20,7 +20,7 @@
 - 延迟模式、低数据模式、跳过任意章节，多种测试方式弹性选择
 - Json输出便于大数据分析
 
-##### 屏幕截图
+#### 屏幕截图
 |IPv4测试结果|IPv6测试结果|
 | ---------------- | ---------------- |
 |![IPv4](https://github.com/xykt/NetQuality/raw/main/res/v4_cn.png)|![IPv6](https://github.com/xykt/NetQuality/raw/main/res/v6_cn.png)|
@@ -31,6 +31,16 @@
 
 
 ## 使用方法
+
+### 便捷模式：交互界面
+
+![Net](https://github.com/xykt/ScriptMenu/raw/main/res/Net_CN.png)
+
+````bash
+bash <(curl -Ls Check.Place) -N
+````
+
+### 高级模式：参数运行
 
 ![Help](https://github.com/xykt/NetQuality/raw/main/res/help.png)
 
