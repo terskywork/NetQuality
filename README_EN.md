@@ -32,60 +32,70 @@
 
 ## Usage
 
+### Easy Mode: Run with Interactive Interface
+
+![Net](https://github.com/xykt/ScriptMenu/raw/main/res/Net_EN.png)
+
+````bash
+bash <(curl -Ls Check.Place) -EN
+````
+
+### Advanced Mode: Run with Parameters
+
 ![Help](https://github.com/xykt/NetQuality/raw/main/res/help.png)
 
 ##### Default dual-stack detection:
 
 ```bash
-bash <(curl -Ls Net.Check.Place)
+bash <(curl -Ls Net.Check.Place) -l en
 ```
 
 ##### IPv4-only test:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -4
+bash <(curl -Ls Net.Check.Place) -l en -4
 ```
 
 ##### IPv6-only test:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -6
+bash <(curl -Ls Net.Check.Place) -l en -6
 ```
 
 ##### Latency mode:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -P
+bash <(curl -Ls Net.Check.Place) -l en -P
 ```
 
 ##### Low data mode:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -L
+bash <(curl -Ls Net.Check.Place) -l en -L
 ```
 
 ##### Full route mode (TCP result in Chinese):
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -R [Province]
+bash <(curl -Ls Net.Check.Place) -l en -R [Province]
 ```
 Test Beijing & Shanghai & Guangdong by default:
 ```bash
-bash <(curl -Ls Net.Check.Place) -R
+bash <(curl -Ls Net.Check.Place) -l en -R
 ```
 Specify parameters to detect the corresponding province (Any of the following):
 ```bash
-bash <(curl -Ls Net.Check.Place) -R 桂
-bash <(curl -Ls Net.Check.Place) -R 广西
-bash <(curl -Ls Net.Check.Place) -R 广西壮族自治区
-bash <(curl -Ls Net.Check.Place) -R GX
-bash <(curl -Ls Net.Check.Place) -R gx
+bash <(curl -Ls Net.Check.Place) -l en -R 桂
+bash <(curl -Ls Net.Check.Place) -l en -R 广西
+bash <(curl -Ls Net.Check.Place) -l en -R 广西壮族自治区
+bash <(curl -Ls Net.Check.Place) -l en -R GX
+bash <(curl -Ls Net.Check.Place) -l en -R gx
 ```
 
 ##### Skip specific sections:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -S 1234567
+bash <(curl -Ls Net.Check.Place) -l en -S 1234567
 ```
 
 ##### Bilingual support:
@@ -97,25 +107,25 @@ bash <(curl -Ls Net.Check.Place) -l cn|en
 ##### JSON output ([Example Output](https://github.com/xykt/NetQuality/blob/main/res/output.json)):
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -j
+bash <(curl -Ls Net.Check.Place) -l en -j
 ```
 
 ##### Skip checking OS and dependencies:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -n
+bash <(curl -Ls Net.Check.Place) -l en -n
 ```
 
 ##### Auto-install dependencies:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -y
+bash <(curl -Ls Net.Check.Place) -l en -y
 ```
 
 ##### Display full IP addresses in the report:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -f
+bash <(curl -Ls Net.Check.Place) -l en -f
 ```
 
 ## Script Updates
