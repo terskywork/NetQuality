@@ -1,5 +1,5 @@
 #!/bin/bash
-script_version="v2025-03-29"
+script_version="v2025-04-19"
 ADLines=0
 check_bash(){
 current_bash_version=$(bash --version|head -n 1|awk '{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+\.[0-9]+(\.[0-9]+)?/) print $i}')
@@ -39,7 +39,7 @@ Font_LineUp="\033[1A"
 declare IP=""
 declare IPhide
 declare fullIP=0
-declare LANG="cn"
+declare YY="cn"
 declare is_dep=1
 declare is_nexttrace=1
 declare is_speedtest=1
@@ -130,12 +130,15 @@ declare mode_json=0
 declare mode_no=0
 declare mode_yes=0
 declare mode_skip=""
+declare mode_menu=0
 declare ping_test_count=10
 declare pingww_test_count=12
 declare netdata
 shelp_lines=(
 "NETWORK QUALITY CHECK SCRIPT 网络质量体检脚本"
-"Usage: bash <(curl -sL Net.Check.Place) [-4] [-6] [-f] [-h] [-j] [-l cn|en] [-n] [-y] [-L] [-P] [-S 1234567]"
+"Interactive Interface:  bash <(curl -sL Net.Check.Place) -EM"
+"交互界面：              bash <(curl -sL Net.Check.Place) -M"
+"Parameters 参数运行: bash <(curl -sL Net.Check.Place) [-4] [-6] [-f] [-h] [-j] [-l language] [-n] [-y] [-E] [-L] [-M] [-P] [-R province] [-S chapters]"
 "            -4               Test IPv4                                  测试IPv4"
 "            -6               Test IPv6                                  测试IPv6"
 "            -f               Show full IP on reports                    报告展示完整IP地址"
@@ -144,13 +147,15 @@ shelp_lines=(
 "            -l cn|en         Specify script language                    指定报告语言"
 "            -n               No OS or dependencies check                跳过系统检测及依赖安装"
 "            -y               Install dependencies without interupt      自动安装依赖"
+"            -E               Specify English Output                     指定英文输出"
 "            -L               Low data mode                              低数据模式（跳过测速环节）"
+"            -M               Run with Interactive Interface             交互界面方式运行"
 "            -P               Ping mode                                  三网延迟模式"
 "            -R [Province]    Route mode [Specify Province]              三网完整路由模式[可选指定省份]"
 "            -S 1234567       Skip sections by number                    跳过相应章节")
 shelp=$(printf "%s\n" "${shelp_lines[@]}")
 set_language(){
-case "$LANG" in
+case "$YY" in
 "en"|"jp"|"es"|"de"|"fr"|"ru"|"pt")swarn[1]="ERROR: Unsupported parameters!"
 swarn[2]="ERROR: IP address format error!"
 swarn[3]="ERROR: Dependent programs are missing. Please run as root or install sudo!"
@@ -182,7 +187,7 @@ sinfo[delayww]="Checking Global TCP Delay"
 sinfo[ldelayww]=25
 shead[title]="NET QUALITY CHECK REPORT: "
 shead[ver]="Version: $script_version"
-shead[bash]="bash <(curl -sL Net.Check.Place)"
+shead[bash]="bash <(curl -sL Check.Place) -EN"
 shead[git]="https://github.com/xykt/NetQuality"
 shead[time]=$(date -u +"Report Time: %Y-%m-%d %H:%M:%S UTC")
 shead[ltitle]=26
@@ -268,7 +273,7 @@ sinfo[delayww]="正在检测国际互连TCP大包延迟"
 sinfo[ldelayww]=27
 shead[title]="网络质量体检报告："
 shead[ver]="脚本版本：$script_version"
-shead[bash]="bash <(curl -sL Net.Check.Place)"
+shead[bash]="bash <(curl -sL Check.Place) -N"
 shead[git]="https://github.com/xykt/NetQuality"
 shead[time]=$(TZ="Asia/Shanghai" date +"报告时间：%Y-%m-%d %H:%M:%S CST")
 shead[ltitle]=18
@@ -1097,7 +1102,7 @@ fi
 pavg[$province$j$ipv]="$avg"
 midresu[$province$j$ipv]="$Font_Green$result$lost$Font_B$(printf '%-3s' "$avg")$Font_Suffix"
 done
-if [[ $LANG == "cn" ]];then
+if [[ $YY == "cn" ]];then
 presu[$province]="$Font_Cyan${pshort[$province]}${midresu[${province}1$ipv]}$tmp_space${midresu[${province}2$ipv]}$tmp_space${midresu[${province}3$ipv]}"
 else
 presu[$province]="$Font_Cyan${pcode[$province]}${midresu[${province}1$ipv]}$tmp_space${midresu[${province}2$ipv]}$tmp_space${midresu[${province}3$ipv]}"
@@ -1607,7 +1612,7 @@ IFS=' ' read -ra parts <<<"$input"
 local discard_patterns=("*" "中国" "电信" "联通" "移动")
 local suffixes=("省" "市" "县" "维吾尔自治区" "回族自治区" "壮族自治区" "自治区" "特别行政区")
 for part in "${parts[@]}";do
-if [[ -z $part || $part =~ ^[[:punct:]]+$ || $part == *"."* || $part == *"RFC"* || $part == *"rfc"* || $part == *"Private"* || $part == *"Local"* || $part == *"DOD"* || $part == *"故障"* || $part == *"错误"* ]];then
+if [[ -z $part || $part =~ ^[[:punct:]]+$ || $part == *"."* || $part == *"RFC"* || $part == *"rfc"* || $part == *"Private"* || $part == *"Local"* ]];then
 continue
 fi
 for pattern in "${discard_patterns[@]}";do
@@ -1900,7 +1905,7 @@ local port=0
 iperfresu[s]=-1
 iperfresu[r]=-1
 local infolen
-if [[ $LANG == "cn" ]];then
+if [[ $YY == "cn" ]];then
 infolen=$((${#6}*2))
 else
 infolen=${#6}
@@ -2039,7 +2044,7 @@ lost="$Font_Red"
 fi
 iavg[$key]="$avg"
 midresu[$key$ipv]="$Font_Green$result$lost$Font_B$(printf '%3s' "$avg")$Font_Suffix"
-if [[ $LANG == "cn" ]];then
+if [[ $YY == "cn" ]];then
 tmp_space=$((10-${#icity[$key]}*2))
 else
 tmp_space=$((10-${#icity[$key]}))
@@ -2057,7 +2062,7 @@ local ipv=$1
 local port=0
 local json_data=$(curl -s https://raw.githubusercontent.com/xykt/NetQuality/refs/heads/main/ref/iperf.json)
 while IFS=" " read -r code server portl portu city cityzh;do
-if [[ $LANG == "cn" ]];then
+if [[ $YY == "cn" ]];then
 icity["$code"]="$cityzh"
 else
 icity["$code"]="$city"
@@ -2126,7 +2131,7 @@ parse_speedtest_result(){
 local tid="$1"
 local tcode="$2"
 local infolen
-if [[ $LANG == "cn" ]];then
+if [[ $YY == "cn" ]];then
 infolen=$((${#scity[$tcode]}*2+${#spv[$tcode]}*2))
 infotxt="${scity[$tcode]}${spv[$tcode]}"
 else
@@ -2204,7 +2209,7 @@ codemax[2]=0
 codemax[3]=0
 codemax[4]=0
 while IFS=" " read -r code id city cityzh provider providerzh;do
-if [[ $LANG == "cn" ]];then
+if [[ $YY == "cn" ]];then
 scity["$code"]="$cityzh"
 spv["$code"]="$providerzh"
 else
@@ -2235,7 +2240,7 @@ else
 break
 fi
 done
-if [[ $LANG == "cn" ]];then
+if [[ $YY == "cn" ]];then
 tmp_space=$((13-${#scity[$pvi$key]}*2-${#spv[$pvi$key]}*2))
 sresu[$pvi$pvj]="$Font_Cyan${scity[$pvi$key]}${spv[$pvi$key]}$(printf "%${tmp_space}s\n")"
 else
@@ -2423,6 +2428,35 @@ echo -ne "\r$Font_I${stail[stoday]}${stail[today]}${stail[stotal]}${stail[total]
 echo -e ""
 }
 get_opts(){
+local args=()
+while [[ $# -gt 0 ]];do
+case "$1" in
+-[SlR])args+=("$1")
+if [[ $# -gt 1 && $2 != -* ]];then
+args+=("$2")
+shift
+fi
+shift
+;;
+-[SlR]*)ERRORcode=1
+shift
+;;
+-[46fhjnyELMP]*)local opt="$1"
+shift
+for ((i=1; i<${#opt}; i++));do
+args+=("-${opt:i:1}")
+done
+;;
+--*|-*[!-]*)args+=("$1")
+shift
+;;
+-*)ERRORcode=1
+shift
+;;
+*)shift
+esac
+done
+set -- "${args[@]}"
 while [[ $# -gt 0 ]];do
 case "$1" in
 -4)if
@@ -2453,7 +2487,7 @@ shift
 shift
 ;;
 -l)shift
-LANG="$1"
+YY=$(echo "$1"|tr '[:upper:]' '[:lower:]')
 shift
 ;;
 -n)mode_no=1
@@ -2462,7 +2496,13 @@ shift
 -y)mode_yes=1
 shift
 ;;
+-E)YY="en"
+shift
+;;
 -L)mode_low=1
+shift
+;;
+-M)mode_menu=1
 shift
 ;;
 -P)mode_ping=1
@@ -2489,6 +2529,14 @@ shift
 *)shift
 esac
 done
+if [[ $mode_menu -eq 1 ]];then
+if [[ $YY == "cn" ]];then
+eval "bash <(curl -sL Check.Place) -N"
+else
+eval "bash <(curl -sL Check.Place) -EN"
+fi
+exit 0
+fi
 [[ $mode_ping -eq 1 ]]&&mode_skip+="567"
 [[ $mode_low -eq 1 ]]&&mode_skip+="6"
 [[ $mode_route -eq 1 ]]&&mode_skip+="467"
