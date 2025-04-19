@@ -1,5 +1,5 @@
 #!/bin/bash
-script_version="v2025-04-19"
+script_version="v2025-04-20"
 ADLines=0
 check_bash(){
 current_bash_version=$(bash --version|head -n 1|awk '{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+\.[0-9]+(\.[0-9]+)?/) print $i}')
@@ -8,7 +8,7 @@ minor_version=$(echo "$current_bash_version"|cut -d'.' -f2)
 if [ "$major_version" -lt 4 ]||{ [ "$major_version" -eq 4 ]&&[ "$minor_version" -lt 3 ];};then
 echo "ERROR: Bash version is $current_bash_version lower than 4.3!"
 echo "Tips: Run the following script to automatically upgrade Bash."
-echo "bash <(curl -sL https://raw.githubusercontent.com/xykt/IPQuality/main/ref/upgrade_bash.sh)"
+echo "bash <(curl -sL https://raw.githubusercontent.com/xykt/NetQuality/main/ref/upgrade_bash.sh)"
 exit 0
 fi
 }
@@ -120,6 +120,7 @@ declare useNIC=""
 declare usePROXY=""
 declare CurlARG=""
 declare UA_Browser
+declare rawgithub
 declare ISO3166
 declare display_max_len=80
 declare mode_ping=0
@@ -499,7 +500,7 @@ case "$sysarch" in
 *)echo "Unsupported architecture"
 exit 1
 esac
-sudo curl -o /usr/bin/speedtest "https://cdn.jsdelivr.net/gh/xykt/NetQuality@main/ref/speedtest/speedtest-$sys_type"
+sudo curl -sL -o /usr/bin/speedtest "${rawgithub}main/ref/speedtest/speedtest-$sys_type"
 sudo chmod +x /usr/bin/speedtest
 fi
 }
@@ -525,6 +526,19 @@ esac
 adapt_locale(){
 local ifunicode=$(printf '\u2800')
 [[ ${#ifunicode} -gt 3 ]]&&export LC_CTYPE=en_US.UTF-8 2>/dev/null
+}
+check_connectivity(){
+local url="https://www.google.com/generate_204"
+local timeout=2
+local http_code
+http_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout "$timeout" "$url" 2>/dev/null)
+if [[ $http_code == "204" ]];then
+rawgithub="https://github.com/xykt/NetQuality/raw/"
+return 0
+else
+rawgithub="https://testingcf.jsdelivr.net/gh/xykt/NetQuality@"
+return 1
+fi
 }
 is_valid_ipv4(){
 local ip=$1
@@ -845,6 +859,10 @@ ctarget=()
 ctier1=()
 cupstream=()
 local RESPONSE=$(curl $CurlARG -$1 --user-agent "$UA_Browser" --max-time 10 -Ls "https://bgp.tools/prefix/$IP")
+if [[ $RESPONSE == *"Overlapping Prefixes Detected"* ]];then
+bgp[prefix]=$(echo "$RESPONSE"|grep -oP '<td class="smallonmobile nowrap"><a href="/prefix/\K[^"]+'|head -1)
+RESPONSE=$(curl $CurlARG -$1 --user-agent "$UA_Browser" --max-time 10 -Ls "https://bgp.tools/prefix/${bgp[prefix]}")
+fi
 bgp[prefix]=$(echo "$RESPONSE"|sed -n 's/.*<p id="network-name" class="heading-xlarge">\([^<]*\)<\/p>.*/\1/p')
 if [[ ${bgp[prefix]} == */* ]];then
 bgp[ip0]="${bgp[prefix]%%/*}"
@@ -930,10 +948,10 @@ trap "kill_progress_bar" RETURN
 local cidr="${IP%.*}.0/24"
 if [[ ${bgp[prefixnum]} != "24" ]];then
 bgp[neighbortotal]="256"
-bgp[neighboractive]=$(curl -s -m 10 --user-agent "$UA_Browser" "https://bgp.tools/pfximg/$cidr"|convert png:- txt:-|grep -c "#0003FF")
+bgp[neighboractive]=$(curl -s -m 10 --user-agent "$UA_Browser" "https://bgp.tools/pfximg/$cidr"|convert png:- txt:- 2>/dev/null|grep -c "#0003FF")
 fi
 bgp[iptotal]="$((2**(32-${bgp[prefixnum]})))"
-bgp[ipactive]=$(curl -s -m 10 --user-agent "$UA_Browser" "https://bgp.tools/pfximg/${bgp[prefix]}"|convert png:- txt:-|grep -c "#0003FF")
+bgp[ipactive]=$(curl -s -m 10 --user-agent "$UA_Browser" "https://bgp.tools/pfximg/${bgp[prefix]}"|convert png:- txt:- 2>/dev/null|grep -c "#0003FF")
 }
 generate_uuidv4(){
 local uuid=""
@@ -2060,7 +2078,7 @@ iperf_test(){
 ibar_step=48
 local ipv=$1
 local port=0
-local json_data=$(curl -s https://raw.githubusercontent.com/xykt/NetQuality/refs/heads/main/ref/iperf.json)
+local json_data=$(curl -sL "${rawgithub}main/ref/iperf.json")
 while IFS=" " read -r code server portl portu city cityzh;do
 if [[ $YY == "cn" ]];then
 icity["$code"]="$cityzh"
@@ -2202,7 +2220,7 @@ echo "$color$(printf '%6s' "$result")$Font_Suffix"
 }
 speedtest_test(){
 ibar_step=36
-local json_data=$(curl -s https://raw.githubusercontent.com/xykt/NetQuality/refs/heads/main/ref/speedtest_cn.json)
+local json_data=$(curl -sL "${rawgithub}main/ref/speedtest_cn.json")
 declare -A codemax
 codemax[1]=0
 codemax[2]=0
@@ -2552,14 +2570,14 @@ echo -ne "\r$shelp\n"
 exit 0
 }
 show_ad(){
-asponsor=$(curl -sL --max-time 5 "https://cdn.jsdelivr.net/gh/xykt/IPQuality@main/ref/sponsor.ans")
-aad1=$(curl -sL --max-time 5 "https://cdn.jsdelivr.net/gh/xykt/IPQuality@main/ref/ad1.ans")
+asponsor=$(curl -sL --max-time 5 "${rawgithub}main/ref/sponsor.ans")
+aad1=$(curl -sL --max-time 5 "${rawgithub}main/ref/ad1.ans")
 echo -e "$asponsor"
 echo -e "$aad1"
 }
 read_ref(){
-ISO3166=$(curl -sL -m 10 "https://cdn.jsdelivr.net/gh/xykt/NetQuality@main/ref/iso3166.json")
-RESPONSE=$(curl -s https://cdn.jsdelivr.net/gh/xykt/NetQuality@main/ref/province.json)
+ISO3166=$(curl -sL -m 10 "${rawgithub}main/ref/iso3166.json")
+RESPONSE=$(curl -sL -m 10 "${rawgithub}main/ref/province.json")
 while IFS=" " read -r province code short name;do
 pcode[$province]=$code
 pshort[$province]=$short
@@ -2586,7 +2604,7 @@ done
 fi
 while read -r as name;do
 AS_MAPPING["$as"]="$name"
-done < <(curl -s "https://raw.githubusercontent.com/xykt/NetQuality/refs/heads/main/ref/AS_Mapping.txt")
+done < <(curl -sL "${rawgithub}main/ref/AS_Mapping.txt")
 }
 save_json(){
 local head_updates=""
@@ -2752,12 +2770,13 @@ local net_report=$(show_head
 [[ $mode_skip != *"6"* && $2 -eq 4 ]]&&show_speedtest
 [[ $mode_skip != *"7"* ]]&&show_iperf
 show_tail)
-[[ mode_json -eq 0 ]]&&echo -ne "\r$net_report\n"
 [[ mode_json -eq 1 ]]&&save_json $2
+[[ mode_json -eq 0 ]]&&echo -ne "\r$net_report\n"
 [[ mode_json -eq 1 ]]&&echo -ne "\r$netdata\n"
 }
 generate_random_user_agent
 adapt_locale
+check_connectivity
 get_ipv4
 get_ipv6
 is_valid_ipv4 $IPV4
