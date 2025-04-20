@@ -44,58 +44,59 @@ bash <(curl -Ls Check.Place) -EN
 
 ![Help](https://github.com/xykt/NetQuality/raw/main/res/help.png)
 
-##### Default dual-stack detection:
+##### Default dual-stack detection (Either):
 
 ```bash
+bash <(curl -Ls Net.Check.Place) -E
 bash <(curl -Ls Net.Check.Place) -l en
 ```
 
 ##### IPv4-only test:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -l en -4
+bash <(curl -Ls Net.Check.Place) -E4
 ```
 
 ##### IPv6-only test:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -l en -6
+bash <(curl -Ls Net.Check.Place) -E6
 ```
 
 ##### Latency mode:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -l en -P
+bash <(curl -Ls Net.Check.Place) -EP
 ```
 
 ##### Low data mode:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -l en -L
+bash <(curl -Ls Net.Check.Place) -EL
 ```
 
 ##### Full route mode (TCP result in Chinese):
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -l en -R [Province]
+bash <(curl -Ls Net.Check.Place) -E -R [Province]
 ```
 Test Beijing & Shanghai & Guangdong by default:
 ```bash
-bash <(curl -Ls Net.Check.Place) -l en -R
+bash <(curl -Ls Net.Check.Place) -E -R
 ```
 Specify parameters to detect the corresponding province (Any of the following):
 ```bash
-bash <(curl -Ls Net.Check.Place) -l en -R 桂
-bash <(curl -Ls Net.Check.Place) -l en -R 广西
-bash <(curl -Ls Net.Check.Place) -l en -R 广西壮族自治区
-bash <(curl -Ls Net.Check.Place) -l en -R GX
-bash <(curl -Ls Net.Check.Place) -l en -R gx
+bash <(curl -Ls Net.Check.Place) -E -R 桂
+bash <(curl -Ls Net.Check.Place) -E -R 广西
+bash <(curl -Ls Net.Check.Place) -E -R 广西壮族自治区
+bash <(curl -Ls Net.Check.Place) -E -R GX
+bash <(curl -Ls Net.Check.Place) -E -R gx
 ```
 
 ##### Skip specific sections:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -l en -S 1234567
+bash <(curl -Ls Net.Check.Place) -E -S 1234567
 ```
 
 ##### Bilingual support:
@@ -107,28 +108,32 @@ bash <(curl -Ls Net.Check.Place) -l cn|en
 ##### JSON output ([Example Output](https://github.com/xykt/NetQuality/blob/main/res/output.json)):
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -l en -j
+bash <(curl -Ls Net.Check.Place) -Ej
 ```
 
 ##### Skip checking OS and dependencies:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -l en -n
+bash <(curl -Ls Net.Check.Place) -En
 ```
 
 ##### Auto-install dependencies:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -l en -y
+bash <(curl -Ls Net.Check.Place) -Ey
 ```
 
 ##### Display full IP addresses in the report:
 
 ```bash
-bash <(curl -Ls Net.Check.Place) -l en -f
+bash <(curl -Ls Net.Check.Place) -Ef
 ```
 
 ## Script Updates
+
+2025/04/21 00:00 Fix macOS compatibility issues and improve script robustness
+
+2025/04/20 21:00 Fixed connectivity issues with CN IPs
 
 2025/03/28 00:50 Add -R Full Route Mode, add international delay test to Low Data Mode, fix bugs
 
