@@ -1,5 +1,5 @@
 #!/bin/bash
-script_version="v2025-04-20"
+script_version="v2025-04-21"
 ADLines=0
 check_bash(){
 current_bash_version=$(bash --version|head -n 1|awk '{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+\.[0-9]+(\.[0-9]+)?/) print $i}')
@@ -358,7 +358,7 @@ install_dependencies(){
 local is_dep=1
 local is_nexttrace=1
 local is_speedtest=1
-if ! jq --version >/dev/null 2>&1||! curl --version >/dev/null 2>&1||! command -v convert >/dev/null 2>&1||! command -v mtr >/dev/null 2>&1||! command -v iperf3 >/dev/null 2>&1||(! command -v stun >/dev/null 2>&1&&! command -v apk >/dev/null 2>&1)||! bc --version >/dev/null 2>&1||! command -v free >/dev/null 2>&1;then
+if ! jq --version >/dev/null 2>&1||! curl --version >/dev/null 2>&1||! command -v convert >/dev/null 2>&1||! command -v mtr >/dev/null 2>&1||! command -v iperf3 >/dev/null 2>&1||(! command -v stun >/dev/null 2>&1&&! command -v apk >/dev/null 2>&1&&[[ "$(uname)" != "Darwin" ]])||! bc --version >/dev/null 2>&1||(! command -v free >/dev/null 2>&1&&[[ "$(uname)" != "Darwin" ]]);then
 is_dep=0
 fi
 if ! command -v nexttrace >/dev/null 2>&1;then
@@ -465,7 +465,7 @@ pkg)$usesudo $package_manager update
 $usesudo $package_manager $install_command jq curl imagemagick mtr iperf3 stun bc procps
 ;;
 brew)eval "$(/opt/homebrew/bin/brew shellenv)"
-$install_command jq curl imagemagick mtr iperf3 stun bc procps
+$install_command jq curl imagemagick mtr iperf3 stun bc
 ;;
 zypper)$usesudo zypper refresh
 $usesudo $install_command jq curl imagemagick mtr iperf3 stun bc procps
@@ -860,7 +860,7 @@ ctier1=()
 cupstream=()
 local RESPONSE=$(curl $CurlARG -$1 --user-agent "$UA_Browser" --max-time 10 -Ls "https://bgp.tools/prefix/$IP")
 if [[ $RESPONSE == *"Overlapping Prefixes Detected"* ]];then
-bgp[prefix]=$(echo "$RESPONSE"|grep -oP '<td class="smallonmobile nowrap"><a href="/prefix/\K[^"]+'|head -1)
+bgp[prefix]=$(echo "$RESPONSE"|grep -o 'href="/prefix/[^"]*'|head -1|cut -d'/' -f3-)
 RESPONSE=$(curl $CurlARG -$1 --user-agent "$UA_Browser" --max-time 10 -Ls "https://bgp.tools/prefix/${bgp[prefix]}")
 fi
 bgp[prefix]=$(echo "$RESPONSE"|sed -n 's/.*<p id="network-name" class="heading-xlarge">\([^<]*\)<\/p>.*/\1/p')
@@ -1135,7 +1135,8 @@ bar_pid="$!"&&disown "$bar_pid"
 trap "kill_progress_bar" RETURN
 [[ $mode_ping -eq 1 ]]&&ping_test_count=44
 local max_threads=93
-local available_memory=$(free -m|awk '/Mem:/ {print $7}')
+local available_memory=1024
+[[ "$(uname)" != "Darwin" ]]&&available_memory=$(free -m|awk '/Mem:/ {print $7}')
 local max_threads_by_memory=$(echo "$available_memory / 8"|bc)
 ((max_threads_by_memory<max_threads))&&max_threads=$max_threads_by_memory
 local current_threads=0
@@ -1467,7 +1468,8 @@ rdomain[7]="gd-ct-v$ipv.ip.zstaticcdn.com"
 rdomain[8]="gd-cu-v$ipv.ip.zstaticcdn.com"
 rdomain[9]="gd-cm-v$ipv.ip.zstaticcdn.com"
 local max_threads=18
-local available_memory=$(free -m|awk '/Mem:/ {print $7}')
+local available_memory=1024
+[[ "$(uname)" != "Darwin" ]]&&available_memory=$(free -m|awk '/Mem:/ {print $7}')
 local max_threads_by_memory=$(echo "$available_memory / 28"|bc)
 ((max_threads_by_memory<max_threads))&&max_threads=$max_threads_by_memory
 local current_threads=0
@@ -1746,7 +1748,8 @@ rdomain[2]="${pcode[$mode_route_pv]}-cu-v$ipv.ip.zstaticcdn.com"
 rdomain[3]="${pcode[$mode_route_pv]}-cm-v$ipv.ip.zstaticcdn.com"
 fi
 local max_threads=18
-local available_memory=$(free -m|awk '/Mem:/ {print $7}')
+local available_memory=1024
+[[ "$(uname)" != "Darwin" ]]&&available_memory=$(free -m|awk '/Mem:/ {print $7}')
 local max_threads_by_memory=$(echo "$available_memory / 28"|bc)
 ((max_threads_by_memory<max_threads))&&max_threads=$max_threads_by_memory
 local current_threads=0
@@ -2106,7 +2109,8 @@ show_progress_bar "$temp_info" $((50-${sinfo[ldelayww]}))&
 bar_pid="$!"&&disown "$bar_pid"
 trap "kill_progress_bar" RETURN
 local max_threads=10
-local available_memory=$(free -m|awk '/Mem:/ {print $7}')
+local available_memory=1024
+[[ "$(uname)" != "Darwin" ]]&&available_memory=$(free -m|awk '/Mem:/ {print $7}')
 local max_threads_by_memory=$(echo "$available_memory / 8"|bc)
 ((max_threads_by_memory<max_threads))&&max_threads=$max_threads_by_memory
 local current_threads=0
