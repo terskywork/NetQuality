@@ -1580,14 +1580,45 @@ echo -ne "\r$tmpback$Font_White$Font_B  ${pname[${rmcode[$i]}]} $tmppv  $Font_Su
 echo -ne "\r$Back_Blue$Font_White地理路径：${rmallgeo[$ii]}    自治系统路径：${rmallasn[$ii]} $Font_Suffix\n"
 local varb="${rmmaxhop[$ii]:-0}"
 varb=${varb#0}
+local mergejump="   "
 for ((j=1; j<=varb; j++));do
 jj=$(printf "%02d" "$j")
+mergeroute=0
+mergejump="   "
 if [[ -n ${rmresu[$ii${jj}2]} ]];then
+local compA="${rmresu[$ii${jj}5]#"${rmresu[$ii${jj}5]%%[![:space:]\*]*}"}"
+compA=$(awk '{print $1 " " $2}' <<<"$compA")
+for ((k=j+1; k<varb; k++));do
+kk=$(printf "%02d" "$k")
+local compB="${rmresu[$ii${kk}5]#"${rmresu[$ii${kk}5]%%[![:space:]\*]*}"}"
+compB=$(awk '{print $1 " " $2}' <<<"$compB")
+if [[ -n ${rmresu[$ii${kk}2]} &&
+${rmresu[$ii${jj}3]} == "${rmresu[$ii${kk}3]}" &&
+${rmresu[$ii${jj}4]} == "${rmresu[$ii${kk}4]}" ]]&&[[ $compA == *"$compB"* ||
+$compB == *"$compA"* ]];then
+mergejump="-$(printf '%-2s' "$k")"
+continue
+fi
+[[ -n ${rmresu[$ii${kk}2]} ]]&&break
+done
+if ((j!=varb));then
+for ((k=j-1; k>0; k--));do
+kk=$(printf "%02d" "$k")
+local compB="${rmresu[$ii${kk}5]#"${rmresu[$ii${kk}5]%%[![:space:]\*]*}"}"
+compB=$(awk '{print $1 " " $2}' <<<"$compB")
+if [[ -n ${rmresu[$ii${kk}2]} &&
+${rmresu[$ii${jj}3]} == "${rmresu[$ii${kk}3]}" &&
+${rmresu[$ii${jj}4]} == "${rmresu[$ii${kk}4]}" ]]&&[[ $compA == *"$compB"* ||
+$compB == *"$compA"* ]];then
+continue 2
+fi
+done
+fi
 tmpdelay=$(colorize_latency "${rmresu[$ii${jj}1]}" 9)
 if [[ $1 -eq 4 ]];then
-echo -ne "\r$Font_B$(printf '%2s' "$j")$Font_Suffix  $tmpdelay  $(printf '%-13s' "${rmresu[$ii${jj}2]}")$Font_B$(printf '%-10s' "${rmresu[$ii${jj}3]}")$(printf '%-18s' "${rmresu[$ii${jj}4]}")$Font_Suffix${rmresu[$ii${jj}5]}\n"
+echo -ne "\r$Font_B$(printf '%2s' "$j")$mergejump$Font_Suffix $tmpdelay  $(printf '%-13s' "${rmresu[$ii${jj}2]}")$Font_B$(printf '%-10s' "${rmresu[$ii${jj}3]}")$(printf '%-18s' "${rmresu[$ii${jj}4]}")$Font_Suffix${rmresu[$ii${jj}5]}\n"
 else
-echo -ne "\r$Font_B$(printf '%2s' "$j")$Font_Suffix  $tmpdelay  $(printf '%-27s' "${rmresu[$ii${jj}2]}")$Font_B$(printf '%-10s' "${rmresu[$ii${jj}3]}")$Font_Suffix${rmresu[$ii${jj}5]}\n"
+echo -ne "\r$Font_B$(printf '%2s' "$j")$mergejump$Font_Suffix $tmpdelay  $(printf '%-27s' "${rmresu[$ii${jj}2]}")$Font_B$(printf '%-10s' "${rmresu[$ii${jj}3]}")$Font_Suffix${rmresu[$ii${jj}5]}\n"
 fi
 fi
 done
