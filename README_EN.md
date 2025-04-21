@@ -131,6 +131,8 @@ bash <(curl -Ls Net.Check.Place) -Ef
 
 ## Script Updates
 
+2025/04/21 22:15 Collapse routing duplicate information for full routing mode
+
 2025/04/21 00:00 Fix macOS compatibility issues and improve script robustness
 
 2025/04/20 21:00 Fixed connectivity issues with CN IPs
