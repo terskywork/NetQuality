@@ -1,2 +1,2 @@
 #!/bin/bash
-echo "bash <(curl -sL Net.Check.Place) -R $@"
+eval "bash <(curl -sL Net.Check.Place) -R $@"
