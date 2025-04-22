@@ -1,6 +1,6 @@
 #!/bin/bash
-script_version="v2025-04-21"
-ADLines=0
+script_version="v2025-04-22"
+ADLines=25
 check_bash(){
 current_bash_version=$(bash --version|head -n 1|awk '{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+\.[0-9]+(\.[0-9]+)?/) print $i}')
 major_version=$(echo "$current_bash_version"|cut -d'.' -f1)
@@ -2607,8 +2607,8 @@ exit 0
 show_ad(){
 asponsor=$(curl -sL --max-time 5 "${rawgithub}main/ref/sponsor.ans")
 aad1=$(curl -sL --max-time 5 "${rawgithub}main/ref/ad1.ans")
-echo -e "$asponsor"
-echo -e "$aad1"
+echo -e "$asponsor" 1>&2
+echo -e "$aad1" 1>&2
 }
 read_ref(){
 ISO3166=$(curl -sL -m 10 "${rawgithub}main/ref/iso3166.json")
@@ -2789,11 +2789,11 @@ getnat=()
 [[ $mode_skip != *"5"* && $mode_route -eq 1 ]]&&get_route_mode $2
 [[ $mode_skip != *"6"* && $2 -eq 4 ]]&&speedtest_test
 [[ $mode_skip != *"7"* ]]&&iperf_test $2
-echo -ne "$Font_LineClear"
+echo -ne "$Font_LineClear" 1>&2
 if [ $2 -eq 4 ]||[[ $IPV4work -eq 0 || $IPV4check -eq 0 ]];then
 for ((i=0; i<ADLines; i++));do
-echo -ne "$Font_LineUp"
-echo -ne "$Font_LineClear"
+echo -ne "$Font_LineUp" 1>&2
+echo -ne "$Font_LineClear" 1>&2
 done
 fi
 local net_report=$(show_head
@@ -2808,6 +2808,7 @@ show_tail)
 [[ mode_json -eq 1 ]]&&save_json $2
 [[ mode_json -eq 0 ]]&&echo -ne "\r$net_report\n"
 [[ mode_json -eq 1 ]]&&echo -ne "\r$netdata\n"
+echo -ne "\r\n"
 }
 generate_random_user_agent
 adapt_locale
@@ -2825,5 +2826,6 @@ echo -ne "\r$Font_B$Font_Red${swarn[$ERRORcode]}$Font_Suffix\n"
 exit $ERRORcode
 fi
 clear
+show_ad
 [[ $IPV4work -ne 0 && $IPV4check -ne 0 ]]&&check_Net "$IPV4" 4
 [[ $IPV6work -ne 0 && $IPV6check -ne 0 ]]&&check_Net "$IPV6" 6
