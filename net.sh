@@ -1,5 +1,5 @@
 #!/bin/bash
-script_version="v2025-04-22"
+script_version="v2025-04-23"
 ADLines=25
 check_bash(){
 current_bash_version=$(bash --version|head -n 1|awk '{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+\.[0-9]+(\.[0-9]+)?/) print $i}')
@@ -132,6 +132,7 @@ declare mode_no=0
 declare mode_yes=0
 declare mode_skip=""
 declare mode_menu=0
+declare mode_output=0
 declare ping_test_count=10
 declare pingww_test_count=12
 declare netdata
@@ -140,20 +141,23 @@ shelp_lines=(
 "Interactive Interface:  bash <(curl -sL Net.Check.Place) -EM"
 "交互界面：              bash <(curl -sL Net.Check.Place) -M"
 "Parameters 参数运行: bash <(curl -sL Net.Check.Place) [-4] [-6] [-f] [-h] [-j] [-l language] [-n] [-y] [-E] [-L] [-M] [-P] [-R province] [-S chapters]"
-"            -4               Test IPv4                                  测试IPv4"
-"            -6               Test IPv6                                  测试IPv6"
-"            -f               Show full IP on reports                    报告展示完整IP地址"
-"            -h               Help information                           帮助信息"
-"            -j               JSON output                                JSON输出"
-"            -l cn|en         Specify script language                    指定报告语言"
-"            -n               No OS or dependencies check                跳过系统检测及依赖安装"
-"            -y               Install dependencies without interupt      自动安装依赖"
-"            -E               Specify English Output                     指定英文输出"
-"            -L               Low data mode                              低数据模式（跳过测速环节）"
-"            -M               Run with Interactive Interface             交互界面方式运行"
-"            -P               Ping mode                                  三网延迟模式"
-"            -R [Province]    Route mode [Specify Province]              三网完整路由模式[可选指定省份]"
-"            -S 1234567       Skip sections by number                    跳过相应章节")
+"            -4                             Test IPv4                                  测试IPv4"
+"            -6                             Test IPv6                                  测试IPv6"
+"            -f                             Show full IP on reports                    报告展示完整IP地址"
+"            -h                             Help information                           帮助信息"
+"            -j                             JSON output                                JSON输出"
+"            -l cn|en                       Specify script language                    指定报告语言"
+"            -n                             No OS or dependencies check                跳过系统检测及依赖安装"
+"            -o /path/to/file.ansi          Output ANSI report to file                 输出ANSI报告至文件"
+"               /path/to/file.json          Output JSON result to file                 输出JSON结果至文件"
+"               /path/to/file.anyother      Output plain test report to file           输出纯文本报告至文件"
+"            -y                             Install dependencies without interupt      自动安装依赖"
+"            -E                             Specify English Output                     指定英文输出"
+"            -L                             Low data mode                              低数据模式（跳过测速环节）"
+"            -M                             Run with Interactive Interface             交互界面方式运行"
+"            -P                             Ping mode                                  三网延迟模式"
+"            -R [Province]                  Route mode [Specify Province]              三网完整路由模式[可选指定省份]"
+"            -S 1234567                     Skip sections by number                    跳过相应章节")
 shelp=$(printf "%s\n" "${shelp_lines[@]}")
 set_language(){
 case "$YY" in
@@ -163,6 +167,8 @@ swarn[3]="ERROR: Dependent programs are missing. Please run as root or install s
 swarn[4]="ERROR: Parameter -4 conflicts with -i or -6!"
 swarn[6]="ERROR: Parameter -6 conflicts with -i or -4!"
 swarn[9]="ERROR: It is not allowed to skip all funcions!"
+swarn[10]="ERROR: Output file already exist!"
+swarn[11]="ERROR: Output file is not writable!"
 swarn[21]="ERROR: Wrong province code or name!"
 swarn[40]="ERROR: IPv4 is not available!"
 swarn[60]="ERROR: IPv6 is not available!"
@@ -249,6 +255,8 @@ swarn[3]="错误：未安装依赖程序，请以root执行此脚本，或者安
 swarn[4]="错误：参数-4与-i/-6冲突！"
 swarn[6]="错误：参数-6与-i/-4冲突！"
 swarn[9]="错误: 不允许跳过所有功能！"
+swarn[10]="错误：输出文件已存在！"
+swarn[11]="错误：输出文件不可写！"
 swarn[21]="错误: 错误的省份名称或代码！"
 swarn[40]="错误：IPV4不可用！"
 swarn[60]="错误：IPV6不可用！"
@@ -1187,7 +1195,7 @@ local max_retries=10
 local retry_delay=5
 local retry_count=0
 while [[ $retry_count -lt $max_retries ]];do
-response=$(nexttrace -p 80 -q 10 -"$ipv" --"$rmode" --raw --psize 1400 "$domain" 2>/dev/null)
+response=$(timeout 60 nexttrace -p 80 -q 8 -"$ipv" --"$rmode" --raw --psize 1400 "$domain" 2>/dev/null)
 [[ $response != *"*please try again later*"* && $response == *"traceroute to"* ]]&&break
 retry_count=$((retry_count+1))
 [[ $retry_count -lt $max_retries ]]&&sleep "$retry_delay"
@@ -1307,7 +1315,7 @@ local max_retries=10
 local retry_delay=5
 local retry_count=0
 while [[ $retry_count -lt $max_retries ]];do
-response=$(mtr -"$ipv" --"$rmode" --no-dns -y 0 -P 80 -c 10 -C -Z 1 -G 1 -s 1400 "$domain" 2>/dev/null)
+response=$(timeout 60 mtr -"$ipv" --"$rmode" --no-dns -y 0 -P 80 -c 8 -C -Z 1 -G 1 -s 1400 "$domain" 2>/dev/null)
 [[ $response != *"*mtr:*"* && $response == *"OK,"* ]]&&break
 retry_count=$((retry_count+1))
 [[ $retry_count -lt $max_retries ]]&&sleep "$retry_delay"
@@ -1695,7 +1703,7 @@ local max_retries=10
 local retry_delay=5
 local retry_count=0
 while [[ $retry_count -lt $max_retries ]];do
-output=$(nexttrace -p 80 -q 10 -"$ipv" "$tmode" --psize 1400 "$domain" 2>/dev/null)
+output=$(timeout 60 nexttrace -p 80 -q 8 -"$ipv" "$tmode" --psize 1400 "$domain" 2>/dev/null)
 [[ $output != *"*please try again later*"* && $output == *"traceroute to"* ]]&&break
 retry_count=$((retry_count+1))
 [[ $retry_count -lt $max_retries ]]&&sleep "$retry_delay"
@@ -2484,14 +2492,14 @@ get_opts(){
 local args=()
 while [[ $# -gt 0 ]];do
 case "$1" in
--[SlR])args+=("$1")
+-[loSR])args+=("$1")
 if [[ $# -gt 1 && $2 != -* ]];then
 args+=("$2")
 shift
 fi
 shift
 ;;
--[SlR]*)ERRORcode=1
+-[loSR]*)ERRORcode=1
 shift
 ;;
 -[46fhjnyELMP]*)local opt="$1"
@@ -2540,10 +2548,32 @@ shift
 shift
 ;;
 -l)shift
+[[ $1 == -* ]]&&ERRORcode=1&&break
 YY=$(echo "$1"|tr '[:upper:]' '[:lower:]')
 shift
 ;;
 -n)mode_no=1
+shift
+;;
+-o)shift
+[[ $1 == -* ]]&&{
+ERRORcode=1
+break
+}
+mode_output=1
+outputfile="$1"
+[[ -z $outputfile ]]&&{
+ERRORcode=1
+break
+}
+[[ -e $outputfile ]]&&{
+ERRORcode=10
+break
+}
+touch "$outputfile" 2>/dev/null||{
+ERRORcode=11
+break
+}
 shift
 ;;
 -y)mode_yes=1
@@ -2805,10 +2835,19 @@ local net_report=$(show_head
 [[ $mode_skip != *"6"* && $2 -eq 4 ]]&&show_speedtest
 [[ $mode_skip != *"7"* ]]&&show_iperf
 show_tail)
-[[ mode_json -eq 1 ]]&&save_json $2
+[[ mode_json -eq 1 || mode_output -eq 1 ]]&&save_json $2
 [[ mode_json -eq 0 ]]&&echo -ne "\r$net_report\n"
 [[ mode_json -eq 1 ]]&&echo -ne "\r$netdata\n"
 echo -ne "\r\n"
+if [[ mode_output -eq 1 ]];then
+case "$outputfile" in
+*.ansi)echo "$net_report" >>"$outputfile" 2>/dev/null
+;;
+*.json)echo "$netdata" >>"$outputfile" 2>/dev/null
+;;
+*)echo -e "$net_report"|sed 's/\x1b\[[0-9;]*[mGKHF]//g' >>"$outputfile" 2>/dev/null
+esac
+fi
 }
 generate_random_user_agent
 adapt_locale
