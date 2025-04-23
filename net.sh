@@ -150,7 +150,7 @@ shelp_lines=(
 "            -n                             No OS or dependencies check                跳过系统检测及依赖安装"
 "            -o /path/to/file.ansi          Output ANSI report to file                 输出ANSI报告至文件"
 "               /path/to/file.json          Output JSON result to file                 输出JSON结果至文件"
-"               /path/to/file.anyother      Output plain test report to file           输出纯文本报告至文件"
+"               /path/to/file.anyother      Output plain text report to file           输出纯文本报告至文件"
 "            -y                             Install dependencies without interupt      自动安装依赖"
 "            -E                             Specify English Output                     指定英文输出"
 "            -L                             Low data mode                              低数据模式（跳过测速环节）"
