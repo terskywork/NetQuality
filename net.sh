@@ -1,5 +1,5 @@
 #!/bin/bash
-script_version="v2025-04-23"
+script_version="v2025-04-24"
 ADLines=25
 check_bash(){
 current_bash_version=$(bash --version|head -n 1|awk '{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+\.[0-9]+(\.[0-9]+)?/) print $i}')
@@ -2841,9 +2841,9 @@ show_tail)
 echo -ne "\r\n"
 if [[ mode_output -eq 1 ]];then
 case "$outputfile" in
-*.ansi)echo "$net_report" >>"$outputfile" 2>/dev/null
+*.[aA][nN][sS][iI])echo "$net_report" >>"$outputfile" 2>/dev/null
 ;;
-*.json)echo "$netdata" >>"$outputfile" 2>/dev/null
+*.[jJ][sS][oO][nN])echo "$netdata" >>"$outputfile" 2>/dev/null
 ;;
 *)echo -e "$net_report"|sed 's/\x1b\[[0-9;]*[mGKHF]//g' >>"$outputfile" 2>/dev/null
 esac
