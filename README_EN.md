@@ -111,6 +111,13 @@ bash <(curl -Ls Net.Check.Place) -l cn|en
 bash <(curl -Ls Net.Check.Place) -Ej
 ```
 
+##### Output report to file in ANSI/JSON/Text format:
+````bash
+bash <(curl -Ls Net.Check.Place) -o /path/to/file.ansi
+bash <(curl -Ls Net.Check.Place) -o /path/to/file.json
+bash <(curl -Ls Net.Check.Place) -o /path/to/file.txtoranyother
+````
+
 ##### Skip checking OS and dependencies:
 
 ```bash
@@ -130,6 +137,8 @@ bash <(curl -Ls Net.Check.Place) -Ef
 ```
 
 ## Script Updates
+
+2025/04/23 18:00 Add -o to output report to file in ANSI/JSON/Text format, fixed the occasional stuck issue in routing test
 
 2025/04/21 22:15 Collapse routing duplicate information for full routing mode
 
