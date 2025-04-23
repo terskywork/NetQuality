@@ -101,6 +101,13 @@ bash <(curl -Ls Net.Check.Place) -l cn|en
 bash <(curl -Ls Net.Check.Place) -j
 ````
 
+##### 输出报告ANSI/JSON/纯文本至文件：
+````bash
+bash <(curl -Ls Net.Check.Place) -o /path/to/file.ansi
+bash <(curl -Ls Net.Check.Place) -o /path/to/file.json
+bash <(curl -Ls Net.Check.Place) -o /path/to/file.txtoranyother
+````
+
 ##### 跳过检测系统及安装依赖：
 ````bash
 bash <(curl -Ls Net.Check.Place) -n
@@ -118,6 +125,8 @@ bash <(curl -Ls Net.Check.Place) -f
 
 
 ## 脚本更新
+
+2025/04/23 18:00 增加-o输出报告ANSI/JSON/纯文本至文件，修复三网回程线路测试偶发卡死问题
 
 2025/04/21 22:15 更新：完整路由模式，折叠重复的路由信息
 
