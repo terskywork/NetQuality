@@ -1,5 +1,5 @@
 #!/bin/bash
-script_version="v2025-04-24"
+script_version="v2025-04-26"
 ADLines=25
 check_bash(){
 current_bash_version=$(bash --version|head -n 1|awk '{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+\.[0-9]+(\.[0-9]+)?/) print $i}')
@@ -135,6 +135,7 @@ declare mode_menu=0
 declare mode_output=0
 declare ping_test_count=10
 declare pingww_test_count=12
+declare usesudo="sudo"
 declare netdata
 shelp_lines=(
 "NETWORK QUALITY CHECK SCRIPT 网络质量体检脚本"
@@ -366,7 +367,11 @@ install_dependencies(){
 local is_dep=1
 local is_nexttrace=1
 local is_speedtest=1
-if ! jq --version >/dev/null 2>&1||! curl --version >/dev/null 2>&1||! command -v convert >/dev/null 2>&1||! command -v mtr >/dev/null 2>&1||! command -v iperf3 >/dev/null 2>&1||(! command -v stun >/dev/null 2>&1&&! command -v apk >/dev/null 2>&1&&[[ "$(uname)" != "Darwin" ]])||! bc --version >/dev/null 2>&1||(! command -v free >/dev/null 2>&1&&[[ "$(uname)" != "Darwin" ]]);then
+local is_stun=1
+if [ "$(uname)" == "Darwin" ]||[ $(id -u) -eq 0 ];then
+usesudo=""
+fi
+if ! jq --version >/dev/null 2>&1||! curl --version >/dev/null 2>&1||! command -v convert >/dev/null 2>&1||! command -v mtr >/dev/null 2>&1||! command -v iperf3 >/dev/null 2>&1||! command -v stun >/dev/null 2>&1||(! command -v stun >/dev/null 2>&1&&! command -v pkg >/dev/null 2>&1&&[[ "$(uname)" != "Darwin" ]])||(! command -v free >/dev/null 2>&1&&[[ "$(uname)" != "Darwin" ]]);then
 is_dep=0
 fi
 if ! command -v nexttrace >/dev/null 2>&1;then
@@ -374,6 +379,9 @@ is_nexttrace=0
 fi
 if ! command -v speedtest >/dev/null 2>&1;then
 is_speedtest=0
+fi
+if ! command -v stun >/dev/null 2>&1&&(command -v apk >/dev/null 2>&1||command -v yum >/dev/null 2>&1||command -v zypper >/dev/null 2>&1||command -v xbps-install >/dev/null 2>&1||command -v pacman >/dev/null 2>&1);then
+is_stun=0
 fi
 if [[ $is_dep -eq 0 || $is_nexttrace -eq 0 || $is_speedtest -eq 0 ]];then
 echo -e "Lacking necessary dependencies."
@@ -397,7 +405,7 @@ echo -e "Detected parameter $Font_Green-y$Font_Suffix. Continue installation..."
 fi
 if [[ $is_dep -eq 0 ]];then
 if [ "$(uname)" == "Darwin" ];then
-install_packages "brew" "brew install" "no_sudo"
+install_packages "brew" "brew install"
 elif [ -f /etc/os-release ];then
 . /etc/os-release
 if [ $(id -u) -ne 0 ]&&! command -v sudo >/dev/null 2>&1;then
@@ -444,42 +452,44 @@ fi
 if [[ $is_speedtest -eq 0 ]];then
 install_speedtest
 fi
+if [[ $is_stun -eq 0 ]];then
+install_stun
+fi
 fi
 }
 install_packages(){
 local package_manager=$1
 local install_command=$2
-local no_sudo=$3
-if [ "$no_sudo" == "no_sudo" ]||[ $(id -u) -eq 0 ];then
-local usesudo=""
-else
-local usesudo="sudo"
-fi
 case $package_manager in
 apt)$usesudo apt update
-$usesudo $install_command jq curl imagemagick mtr iperf3 stun bc procps
+$usesudo $install_command jq curl imagemagick mtr-tiny iperf3 stun bc procps
 ;;
-dnf|yum)$usesudo $install_command epel-release
+dnf)$usesudo $install_command epel-release
 $usesudo $package_manager makecache
 $usesudo $install_command jq curl ImageMagick mtr iperf3 stun bc procps-ng
 ;;
+yum)$usesudo $install_command epel-release
+$usesudo $package_manager makecache
+$usesudo $install_command jq curl ImageMagick mtr iperf3 bc procps-ng libstdc++
+;;
 pacman)$usesudo pacman -Sy
-$usesudo $install_command jq curl imagemagick mtr iperf3 stun bc procps-ng
+$usesudo $install_command jq curl imagemagick mtr iperf3 bc procps-ng
+$usesudo yay -S --noconfirm gcompat
 ;;
 apk)$usesudo apk update
-$usesudo $install_command jq curl imagemagick mtr iperf3 bc procps
+$usesudo $install_command jq curl imagemagick mtr iperf3 bc procps gcompat libstdc++
 ;;
 pkg)$usesudo $package_manager update
-$usesudo $package_manager $install_command jq curl imagemagick mtr iperf3 stun bc procps
+$usesudo $package_manager $install_command jq curl imagemagick mtr iperf3 bc procps libstdcxx
 ;;
 brew)eval "$(/opt/homebrew/bin/brew shellenv)"
-$install_command jq curl imagemagick mtr iperf3 stun bc
+$install_command jq curl imagemagick mtr iperf3 bc
 ;;
 zypper)$usesudo zypper refresh
-$usesudo $install_command jq curl imagemagick mtr iperf3 stun bc procps
+$usesudo $install_command jq curl imagemagick mtr iperf3 bc procps libstdc++6
 ;;
 xbps)$usesudo xbps-install -Sy
-$usesudo $install_command jq curl imagemagick mtr iperf3 stun bc procps-ng
+$usesudo $install_command jq curl imagemagick mtr iperf3 bc procps-ng gcompat libstdc++
 esac
 }
 install_speedtest(){
@@ -488,15 +498,14 @@ brew tap teamookla/speedtest
 brew update
 brew install speedtest --force
 elif [ "$(uname)" == "FreeBSD" ];then
-sudo pkg update&&sudo pkg install -g libidn2 ca_root_nss
+$usesudo pkg update&&sudo pkg install -g libidn2 ca_root_nss
 freebsd_version=$(freebsd-version|cut -d '-' -f 1)
 case $freebsd_version in
-12.*)sudo pkg add "https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-freebsd12-x86_64.pkg"
+12.*)$usesudo pkg add "https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-freebsd12-x86_64.pkg"
 ;;
-13.*)sudo pkg add "https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-freebsd13-x86_64.pkg"
+13.*)$usesudo pkg add "https://install.speedtest.net/app/cli/ookla-speedtest-1.2.0-freebsd13-x86_64.pkg"
 ;;
-*)echo "Unsupported FreeBSD version: $freebsd_version"
-exit 1
+*)return 1
 esac
 else
 local sys_type=""
@@ -505,12 +514,37 @@ case "$sysarch" in
 "x86_64"|"x86"|"amd64"|"x64")sys_type="x86_64";;
 "i386"|"i686")sys_type="i386";;
 "aarch64"|"armv7l"|"armv8"|"armv8l")sys_type="aarch64";;
-*)echo "Unsupported architecture"
-exit 1
+*)return 1
 esac
-sudo curl -sL -o /usr/bin/speedtest "${rawgithub}main/ref/speedtest/speedtest-$sys_type"
-sudo chmod +x /usr/bin/speedtest
+$usesudo curl -sL -o /usr/bin/speedtest "${rawgithub}main/ref/speedtest/speedtest-$sys_type"
+$usesudo chmod +x /usr/bin/speedtest
 fi
+}
+install_stun(){
+local arch
+local sys_type
+arch=$(uname -m)
+case "$arch" in
+x86_64)if
+[[ "$(getconf LONG_BIT)" == "32" ]]
+then
+sys_type="i386"
+else
+sys_type="amd64"
+fi
+;;
+aarch64|arm64)sys_type="arm64"
+;;
+i386|i486|i586|i686)sys_type="i386"
+;;
+mips64|mips64el)echo "mips64el"
+;;
+riscv64)echo "riscv64"
+;;
+*)return 1
+esac
+$usesudo curl -sL -o /usr/bin/stun "${rawgithub}main/ref/stun/stun_$sys_type"
+$usesudo chmod +x /usr/bin/stun
 }
 declare -A browsers=(
 [Chrome]="87.0.4280.66 88.0.4324.150 89.0.4389.82"
@@ -831,12 +865,10 @@ conn[peers]=$((ROWS-1))
 }
 get_bgp(){
 bgp[org]="${bgp[org]:-${getbgp[org-name]:-${getbgp[organization]:-${getbgp[orgname]:-${getbgp[owner]:-${getbgp[dscr]%%,*:-${getbgp[netname]:-${getbgp[ownerid]:-${getbgp[mnt-by]}}}}}}}}}"
-if [[ -n ${getbgp[source]} || -n ${getbgp[mnt-by]} ]];then
-[[ -z ${bgp[rir]} && ${getbgp[source]} =~ ^(RIPE|APNIC|ARIN|LACNIC|AFRINIC)$ ]]&&bgp[rir]="${getbgp[source]}"
+[[ ${getbgp[source]} =~ ^(RIPE|APNIC|ARIN|LACNIC|AFRINIC)$ ]]&&bgp[rir]="${getbgp[source]}"
 [[ -z ${bgp[rir]} && ${getbgp[mnt-by]} =~ ^(RIPE|APNIC|ARIN|LACNIC|AFRINIC)- ]]&&bgp[rir]="${BASH_REMATCH[1]}"
 [[ -z ${bgp[rir]} && -n ${getbgp[ownerid]} ]]&&bgp[rir]="LACNIC"
 [[ -z ${bgp[rir]} && -n ${getbgp[orgtechhandle]} ]]&&bgp[rir]="ARIN"
-fi
 if [[ -n ${getbgp[country]} ]];then
 [[ -z ${bgp[countrycode]} ]]&&bgp[countrycode]="${getbgp[country]}"
 [[ -z ${bgp[country]} ]]&&bgp[country]=$(echo "$ISO3166"|jq --arg code "${bgp[countrycode]}" -r '.[] | select(.["alpha-2"] == $code) | .name // ""')
@@ -877,20 +909,20 @@ bgp[ip0]="${bgp[prefix]%%/*}"
 bgp[prefixnum]="${bgp[prefix]##*/}"
 fi
 bgp[asn]=$(echo "$RESPONSE"|awk -v RS='<strong>' '/Originated by/ {getline; print $0}'|sed 's/<[^>]*>//g'|head -n 1)
+bgp[asn]="${bgp[asn]%%,*}"
 bgp[org]=$(echo "$RESPONSE"|sed -n 's/.*AS Name: <strong>\([^<]*\)<\/strong>.*/\1/p')
-bgp[regdate]=$(echo "$RESPONSE"|awk -v RS="<dt>Registered on</dt>" 'NR==2'|awk -v RS="</dd>" 'NR==1'|sed -E 's/.*<dd[^>]*>//'|xargs)
-[[ -n ${bgp[regdate]} ]]&&bgp[regdate]="$(parse_date "${bgp[regdate]}")"
 local last_field_name=""
 local CONTENT=$(echo "$RESPONSE"|sed -n '/<div style="display: none" id="whois-page">/,/<\/div>/p'|sed -n '/<pre style="white-space: pre-wrap;">/,/<\/pre>/p'|sed 's/<pre style="white-space: pre-wrap;">//'|sed 's/<[^>]*>//g')
 while IFS= read -r line;do
 [[ -z $line ]]&&continue
 if [[ $line == *:* ]];then
-field_name=$(awk -F: '{gsub(/^ +| +$/, "", $1); print tolower($1)}' <<<"$line"|sed 's/^ *//;s/ *$//')
-field_value=$(awk -F: '{gsub(/^ +| +$/, "", $2); print substr($0, index($0, $2))}' <<<"$line"|sed 's/^ *//;s/ *$//')
+if [[ $line =~ ^([^:]+):(.*)$ ]];then
+field_name="${BASH_REMATCH[1],,}"
+field_value=$(echo "${BASH_REMATCH[2]}"|sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+fi
 [[ -z $field_value ]]&&continue
 if [[ $field_name == "$last_field_name" ]];then
 getbgp["$field_name"]+=", $field_value"
-last_field_name="$field_name"
 elif [[ -z ${getbgp[$field_name]} ]];then
 getbgp["$field_name"]="$field_value"
 last_field_name="$field_name"
@@ -931,12 +963,13 @@ CONTENT=$(echo "$CONTENT"|sed 's/\\n/\n/g'|sed 's/\\t/\t/g')
 while IFS= read -r line;do
 [[ -z $line ]]&&continue
 if [[ $line == *:* ]];then
-field_name=$(awk -F: '{gsub(/^ +| +$/, "", $1); print tolower($1)}' <<<"$line"|sed 's/^ *//;s/ *$//')
-field_value=$(awk -F: '{gsub(/^ +| +$/, "", $2); print substr($0, index($0, $2))}' <<<"$line"|sed 's/^ *//;s/ *$//')
+if [[ $line =~ ^([^:]+):(.*)$ ]];then
+field_name="${BASH_REMATCH[1],,}"
+field_value=$(echo "${BASH_REMATCH[2]}"|sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')
+fi
 [[ -z $field_value ]]&&continue
 if [[ $field_name == "$last_field_name" ]];then
 getbgp["$field_name"]+=", $field_value"
-last_field_name="$field_name"
 elif [[ -z ${getbgp[$field_name]} ]];then
 getbgp["$field_name"]="$field_value"
 last_field_name="$field_name"
@@ -945,6 +978,13 @@ last_field_name=""
 fi
 fi
 done <<<"$CONTENT"
+bgp[asn]="${bgp[asn]:-${getbgp[origin]:-${getbgp[originas]:-${getbgp[aut-num]}}}}"
+[[ ${bgp[asn]} == "N/A" ]]&&bgp[asn]=""
+bgp[prefix]="${bgp[prefix]:-${getbgp[route]:-${getbgp[route6]:-${getbgp[cidr]:-${getbgp[inetrev]}}}}}"
+if [[ ${bgp[prefix]} == */* ]];then
+bgp[ip0]="${bgp[prefix]%%/*}"
+bgp[prefixnum]="${bgp[prefix]##*/}"
+fi
 get_bgp
 }
 get_neighbor(){
@@ -953,13 +993,16 @@ local temp_info="$Font_Cyan$Font_B${sinfo[neighbor]}$Font_Suffix"
 show_progress_bar "$temp_info" $((50-${sinfo[lneighbor]}))&
 bar_pid="$!"&&disown "$bar_pid"
 trap "kill_progress_bar" RETURN
+local convert_output
 local cidr="${IP%.*}.0/24"
 if [[ ${bgp[prefixnum]} != "24" ]];then
 bgp[neighbortotal]="256"
-bgp[neighboractive]=$(curl -s -m 10 --user-agent "$UA_Browser" "https://bgp.tools/pfximg/$cidr"|convert png:- txt:- 2>/dev/null|grep -c "#0003FF")
+convert_output=$(curl -s -m 10 --user-agent "$UA_Browser" "https://bgp.tools/pfximg/$cidr"|convert png:- txt:- 2>/dev/null)
+[[ -n $convert_output ]]&&bgp[neighboractive]=$(grep -E -c "#0003FF|#4041BE" <<<"$convert_output")
 fi
 bgp[iptotal]="$((2**(32-${bgp[prefixnum]})))"
-bgp[ipactive]=$(curl -s -m 10 --user-agent "$UA_Browser" "https://bgp.tools/pfximg/${bgp[prefix]}"|convert png:- txt:- 2>/dev/null|grep -c "#0003FF")
+convert_output=$(curl -s -m 10 --user-agent "$UA_Browser" "https://bgp.tools/pfximg/${bgp[prefix]}"|convert png:- txt:- 2>/dev/null)
+[[ -n $convert_output ]]&&bgp[ipactive]=$(grep -E -c "#0003FF|#4041BE" <<<"$convert_output")
 }
 generate_uuidv4(){
 local uuid=""
@@ -2349,8 +2392,9 @@ if [[ -n ${bgp[asn]} && ${bgp[asn]} != "null" || -n ${bgp[org]} && ${bgp[org]} !
 local tmpstr=""
 local tmpinfo=""
 [[ -n ${bgp[rir]} && ${bgp[rir]} != "null" ]]&&tmpinfo="${bgp[rir]}"&&tmpstr=", "
-[[ -n ${bgp[asn]} && ${bgp[asn]} != "null" ]]&&tmpinfo="$tmpinfo$tmpstr${bgp[asn]}"&&tmpstr=", "
+[[ -n ${bgp[asn]} && ${bgp[asn]} != "null" ]]&&tmpinfo="$tmpinfo$tmpstr${bgp[asn]}"&&tmpstr=" "
 [[ -n ${bgp[org]} && ${bgp[org]} != "null" ]]&&tmpinfo="$tmpinfo$tmpstr${bgp[org]}"&&tmpstr=", "
+[[ $tmpstr == " " ]]&&tmpstr=", "
 [[ -n ${bgp[prefixnum]} && ${bgp[prefixnum]} != "null" ]]&&tmpinfo="$tmpinfo${tmpstr}Prefix/${bgp[prefixnum]}"
 echo -ne "\r$Font_Cyan${sbgp[ipinfo]}$Font_Green$(wrap_text 20 "$tmpinfo")$Font_Suffix\n"
 fi
@@ -2374,11 +2418,9 @@ fi
 [[ -n $fullcountry && $fullcountry != "null" ]]&&echo -ne "\r$Font_Cyan${sbgp[country]}$Font_Green$(wrap_text 20 "$fullcountry")$Font_Suffix\n"
 [[ -n ${bgp[address]} && ${bgp[address]} != "null" ]]&&echo -ne "\r$Font_Cyan${sbgp[address]}$Font_Green$(wrap_text 20 "${bgp[address]}")$Font_Suffix\n"
 [[ -n ${bgp[geofeed]} && ${bgp[geofeed]} != "null" ]]&&echo -ne "\r$Font_Cyan${sbgp[geofeed]}$Font_Green${bgp[geofeed]}$Font_Suffix\n"
-if [[ -z ${bgp[neighbortotal]} || ${bgp[neighbortotal]} == 0 ]];then
-neighbor_ratio=0
-else
+local neighborresu=""
+if [[ ${bgp[neighbortotal]} -gt 0 && -n ${bgp[neighboractive]} ]];then
 neighbor_ratio=$(echo "scale=2; ${bgp[neighboractive]}/${bgp[neighbortotal]}"|bc)
-fi
 if (($(echo "$neighbor_ratio < 0.5"|bc -l)));then
 neighbor_bg=$Back_Green
 elif (($(echo "$neighbor_ratio >= 0.5"|bc -l)))&&(($(echo "$neighbor_ratio < 0.8"|bc -l)));then
@@ -2388,11 +2430,10 @@ neighbor_bg=$Back_Red
 else
 neighbor_bg=$Back_Green
 fi
-if [[ -z ${bgp[iptotal]} || ${bgp[iptotal]} == 0 ]];then
-ip_ratio=0
-else
-ip_ratio=$(echo "scale=2; ${bgp[ipactive]}/${bgp[iptotal]}"|bc)
+neighborresu="${Font_Green}Subnet/24 $neighbor_bg$Font_B$Font_White ${bgp[neighboractive]} / ${bgp[neighbortotal]} $Font_Suffix    "
 fi
+if [[ ${bgp[iptotal]} -gt 0 && -n ${bgp[ipactive]} ]];then
+ip_ratio=$(echo "scale=2; ${bgp[ipactive]}/${bgp[iptotal]}"|bc)
 if (($(echo "$ip_ratio < 0.5"|bc -l)));then
 ip_bg=$Back_Green
 elif (($(echo "$ip_ratio >= 0.5"|bc -l)))&&(($(echo "$ip_ratio < 0.8"|bc -l)));then
@@ -2402,9 +2443,8 @@ ip_bg=$Back_Red
 else
 ip_bg=$Back_Green
 fi
-local neighborresu=""
-[[ -n ${bgp[neighboractive]} ]]&&neighborresu="${Font_Green}Subnet/24 $neighbor_bg$Font_B$Font_White ${bgp[neighboractive]} / ${bgp[neighbortotal]} $Font_Suffix    "
-[[ -n ${bgp[ipactive]} ]]&&neighborresu+="${Font_Green}Prefix/${bgp[prefixnum]} $ip_bg$Font_B$Font_White ${bgp[ipactive]} / ${bgp[iptotal]} $Font_Suffix"
+neighborresu+="${Font_Green}Prefix/${bgp[prefixnum]} $ip_bg$Font_B$Font_White ${bgp[ipactive]} / ${bgp[iptotal]} $Font_Suffix"
+fi
 [[ -n $neighborresu ]]&&echo -ne "\r$Font_Cyan${sbgp[neighbor]}$neighborresu$Font_Suffix\n"
 }
 show_local(){
