@@ -1238,7 +1238,7 @@ local max_retries=10
 local retry_delay=5
 local retry_count=0
 while [[ $retry_count -lt $max_retries ]];do
-response=$(timeout 60 nexttrace -p 80 -q 8 -"$ipv" --"$rmode" --raw --psize 1400 "$domain" 2>/dev/null)
+response=$(timeout -s KILL 60 nexttrace -p 80 -q 8 -"$ipv" --"$rmode" --raw --psize 1400 "$domain" 2>/dev/null)
 [[ $response != *"*please try again later*"* && $response == *"traceroute to"* ]]&&break
 retry_count=$((retry_count+1))
 [[ $retry_count -lt $max_retries ]]&&sleep "$retry_delay"
