@@ -1,5 +1,5 @@
 #!/bin/bash
-script_version="v2025-04-26"
+script_version="v2025-04-27"
 ADLines=25
 check_bash(){
 current_bash_version=$(bash --version|head -n 1|awk '{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+\.[0-9]+(\.[0-9]+)?/) print $i}')
@@ -230,7 +230,7 @@ sconn[title]="3. Connectivity ($Back_Green$Font_White$Font_B*$Font_Suffix$Font_I
 sconn[ix]="IXPs Counts: "
 sconn[upstreams]="Upstreams Counts: "
 sconn[peers]="Peers Counts: "
-sdelay[title]="4. China Mainland TCP Delay (${Font_I}CT|CU|CM ⠂=80ms$Font_Suffix)         "
+sdelay[title]="4. China Mainland TCP Delay (${Font_I}CT|CU|CM Step=80ms$Font_Suffix)      "
 sdelay[pingmode]="$(printf '%8s'|tr ' ' '*')China Telecom$(printf '%13s'|tr ' ' '*')China Unicom$(printf '%14s'|tr ' ' '*')China Mobile$(printf '%8s'|tr ' ' '*')"
 sroute[title]="5. Route to China Mainland (May vary with network congestion)"
 sroute[ct]="CTel"
@@ -318,7 +318,7 @@ sconn[title]="三、接入信息（$Back_Green$Font_White$Font_B*$Font_Suffix$Fo
 sconn[ix]="互联网交换点接入数："
 sconn[upstreams]="上游数量："
 sconn[peers]="对等互联数量："
-sdelay[title]="四、三网TCP大包延迟（$Font_I依次为电信|联通|移动 ⠂=80ms$Font_Suffix）    "
+sdelay[title]="四、三网TCP大包延迟（$Font_I依次为电信|联通|移动 Step=80ms$Font_Suffix） "
 sdelay[pingmode]="$(printf '%12s'|tr ' ' '*')电 信$(printf '%21s'|tr ' ' '*')联 通$(printf '%21s'|tr ' ' '*')移 动$(printf '%11s'|tr ' ' '*')"
 sroute[title]="五、三网回程路由（$Font_I线路可能随网络负载动态变化$Font_Suffix）"
 sroute[ct]="电信"
@@ -1221,9 +1221,9 @@ for key in $(echo "${!pcode[@]}"|tr ' ' '\n'|sort -n);do
 echo -en "${presu[$key]}"
 ((count++))
 if ((count%resu_per_line==0));then
-echo
+echo -ne "\r\n"
 else
-echo -en " "
+echo -ne " "
 fi
 done
 ((count%resu_per_line!=0))&&echo
@@ -1238,7 +1238,7 @@ local max_retries=10
 local retry_delay=5
 local retry_count=0
 while [[ $retry_count -lt $max_retries ]];do
-response=$(timeout -s KILL 60 nexttrace -p 80 -q 8 -"$ipv" --"$rmode" --raw --psize 1400 "$domain" 2>/dev/null)
+response=$(timeout 50 -s KILL nexttrace -p 80 -q 8 -"$ipv" --"$rmode" --raw --psize 1400 "$domain" 2>/dev/null)
 [[ $response != *"*please try again later*"* && $response == *"traceroute to"* ]]&&break
 retry_count=$((retry_count+1))
 [[ $retry_count -lt $max_retries ]]&&sleep "$retry_delay"
@@ -1746,7 +1746,7 @@ local max_retries=10
 local retry_delay=5
 local retry_count=0
 while [[ $retry_count -lt $max_retries ]];do
-output=$(timeout 60 nexttrace -p 80 -q 8 -"$ipv" "$tmode" --psize 1400 "$domain" 2>/dev/null)
+output=$(timeout 50 -s KILL nexttrace -p 80 -q 8 -"$ipv" "$tmode" --psize 1400 "$domain" 2>/dev/null)
 [[ $output != *"*please try again later*"* && $output == *"traceroute to"* ]]&&break
 retry_count=$((retry_count+1))
 [[ $retry_count -lt $max_retries ]]&&sleep "$retry_delay"
@@ -2224,9 +2224,9 @@ for key in "${keys[@]}";do
 echo -ne "${iresu[$key]}"
 ((count++))
 if ((count%2==0));then
-echo
+echo -ne "\r\n"
 else
-echo -en "||"
+echo -ne "||"
 fi
 done
 ((count%2!=0))&&echo
@@ -2363,9 +2363,9 @@ for key in "${keys[@]}";do
 echo -ne "${sresu[$key]}"
 ((count++))
 if ((count%2==0));then
-echo
+echo -ne "\r\n"
 else
-echo -en "||"
+echo -ne "||"
 fi
 done
 ((count%2!=0))&&echo
