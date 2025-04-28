@@ -1218,11 +1218,12 @@ count=2
 echo -ne "\r${sdelay[title]}"
 fi
 for key in $(echo "${!pcode[@]}"|tr ' ' '\n'|sort -n);do
+echo -en "${presu[$key]}"
 ((count++))
 if ((count%resu_per_line==0));then
-echo -ne "\r${presu[$key]}\n"
+echo -ne "\r\n"
 else
-echo -ne "${presu[$key]} "
+echo -ne " "
 fi
 done
 ((count%resu_per_line!=0))&&echo
@@ -2220,11 +2221,12 @@ echo -ne "\r${siperf[title]}\n"
 local count=0
 local keys=($(echo "${!icity[@]}"|tr ' ' '\n'|sort -n))
 for key in "${keys[@]}";do
+echo -ne "${iresu[$key]}"
 ((count++))
 if ((count%2==0));then
-echo -ne "\r${iresu[$key]}\n"
+echo -ne "\r\n"
 else
-echo -ne "${iresu[$key]}||"
+echo -ne "||"
 fi
 done
 ((count%2!=0))&&echo
@@ -2358,11 +2360,12 @@ echo -ne "\r${sspeedtest[title]}\n"
 local count=0
 local keys=($(echo "${!sresu[@]}"|tr ' ' '\n'|sort -n))
 for key in "${keys[@]}";do
+echo -ne "${sresu[$key]}"
 ((count++))
 if ((count%2==0));then
-echo -ne "\r${sresu[$key]}\n"
+echo -ne "\r\n"
 else
-echo -ne "${sresu[$key]}||"
+echo -ne "||"
 fi
 done
 ((count%2!=0))&&echo
