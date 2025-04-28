@@ -1,5 +1,5 @@
 #!/bin/bash
-script_version="v2025-04-27"
+script_version="v2025-04-29"
 ADLines=25
 check_bash(){
 current_bash_version=$(bash --version|head -n 1|awk '{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+\.[0-9]+(\.[0-9]+)?/) print $i}')
@@ -241,7 +241,7 @@ sroute[sh]="SH "
 sroute[gz]="GZ "
 sroute[tcp]="TCP:  "
 sroute[udp]="UDP:  "
-sspeedtest[title]="6. CN NetSpeed $Font_I${Font_U}Send$Font_Suffix ${Font_I}Delay ${Font_U}Receive$Font_Suffix ${Font_I}Delay$Font_Suffix||Unit: ms ${Font_U}Mbps$Font_Suffix$Font_I  ${Font_U}Send$Font_Suffix ${Font_I}Delay ${Font_U}Receive$Font_Suffix ${Font_I}Delay$Font_Suffix"
+sspeedtest[title]="6. CN NetSpeed $Font_I${Font_U}Send$Font_Suffix ${Font_I}Delay ${Font_U}Receive$Font_Suffix ${Font_I}Delay$Font_Suffix||Unit: ${Font_U}Mbps$Font_Suffix$Font_I ms  ${Font_U}Send$Font_Suffix ${Font_I}Delay ${Font_U}Receive$Font_Suffix ${Font_I}Delay$Font_Suffix"
 siperf[title]="7. Global Network   $Font_I${Font_U}Send$Font_Suffix ${Font_I}Retr ${Font_U}Recv$Font_Suffix ${Font_I}Retr$Font_Suffix||Unit: ms ${Font_U}Mbps$Font_Suffix$Font_I Delay ${Font_U}Send$Font_Suffix ${Font_I}Retr ${Font_U}Recv$Font_Suffix ${Font_I}Retr$Font_Suffix"
 siperf[send]=" Send"
 siperf[recv]=" Receive"
@@ -329,7 +329,7 @@ sroute[sh]="上海"
 sroute[gz]="广州"
 sroute[tcp]="TCP："
 sroute[udp]="UDP："
-sspeedtest[title]="六、国内测速   $Font_I$Font_U发送$Font_Suffix  $Font_I延迟    $Font_U接收$Font_Suffix  $Font_I延迟$Font_Suffix||单位：ms ${Font_U}Mbps$Font_Suffix$Font_I  $Font_U发送$Font_Suffix  $Font_I延迟    $Font_U接收$Font_Suffix  $Font_I延迟$Font_Suffix"
+sspeedtest[title]="六、国内测速   $Font_I$Font_U发送$Font_Suffix  $Font_I延迟    $Font_U接收$Font_Suffix  $Font_I延迟$Font_Suffix||单位：${Font_U}Mbps$Font_Suffix$Font_I ms  $Font_U发送$Font_Suffix  $Font_I延迟    $Font_U接收$Font_Suffix  $Font_I延迟$Font_Suffix"
 siperf[title]="七、国际互连   $Font_I延迟 $Font_U发送$Font_Suffix $Font_I重传 $Font_U接收$Font_Suffix $Font_I重传$Font_Suffix||单位：ms ${Font_U}Mbps$Font_Suffix$Font_I  延迟 $Font_U发送$Font_Suffix $Font_I重传 $Font_U接收$Font_Suffix $Font_I重传$Font_Suffix"
 siperf[send]="之发送"
 siperf[recv]="之接收"
@@ -1218,12 +1218,11 @@ count=2
 echo -ne "\r${sdelay[title]}"
 fi
 for key in $(echo "${!pcode[@]}"|tr ' ' '\n'|sort -n);do
-echo -en "${presu[$key]}"
 ((count++))
 if ((count%resu_per_line==0));then
-echo -ne "\r\n"
+echo -ne "\r${presu[$key]}\n"
 else
-echo -ne " "
+echo -ne "${presu[$key]} "
 fi
 done
 ((count%resu_per_line!=0))&&echo
@@ -1238,7 +1237,7 @@ local max_retries=10
 local retry_delay=5
 local retry_count=0
 while [[ $retry_count -lt $max_retries ]];do
-response=$(timeout 50 -s KILL nexttrace -p 80 -q 8 -"$ipv" --"$rmode" --raw --psize 1400 "$domain" 2>/dev/null)
+response=$(timeout -s SIGKILL 50 nexttrace -p 80 -q 8 -"$ipv" --"$rmode" --raw --psize 1400 "$domain" 2>/dev/null)
 [[ $response != *"*please try again later*"* && $response == *"traceroute to"* ]]&&break
 retry_count=$((retry_count+1))
 [[ $retry_count -lt $max_retries ]]&&sleep "$retry_delay"
@@ -1714,7 +1713,7 @@ IFS=' ' read -ra parts <<<"$input"
 local discard_patterns=("*" "中国" "电信" "联通" "移动")
 local suffixes=("省" "市" "县" "维吾尔自治区" "回族自治区" "壮族自治区" "自治区" "特别行政区")
 for part in "${parts[@]}";do
-if [[ -z $part || $part =~ ^[[:punct:]]+$ || $part == *"."* || $part == *"RFC"* || $part == *"rfc"* || $part == *"Private"* || $part == *"Local"* ]];then
+if [[ -z $part || $part =~ ^[[:punct:]]+$ || $part == *"."* || $part == *"RFC"* || $part == *"rfc"* || $part == *"Private"* || $part == *"Local"* || $part == *"DOD"* || $part == *"Anycast"* || $part == *"ASAPI"* || $part == *"网络故障"* ]];then
 continue
 fi
 for pattern in "${discard_patterns[@]}";do
@@ -1746,7 +1745,7 @@ local max_retries=10
 local retry_delay=5
 local retry_count=0
 while [[ $retry_count -lt $max_retries ]];do
-output=$(timeout 50 -s KILL nexttrace -p 80 -q 8 -"$ipv" "$tmode" --psize 1400 "$domain" 2>/dev/null)
+output=$(timeout -s SIGKILL 50 nexttrace -p 80 -q 8 -"$ipv" "$tmode" --psize 1400 "$domain" 2>/dev/null)
 [[ $output != *"*please try again later*"* && $output == *"traceroute to"* ]]&&break
 retry_count=$((retry_count+1))
 [[ $retry_count -lt $max_retries ]]&&sleep "$retry_delay"
@@ -2221,12 +2220,11 @@ echo -ne "\r${siperf[title]}\n"
 local count=0
 local keys=($(echo "${!icity[@]}"|tr ' ' '\n'|sort -n))
 for key in "${keys[@]}";do
-echo -ne "${iresu[$key]}"
 ((count++))
 if ((count%2==0));then
-echo -ne "\r\n"
+echo -ne "\r${iresu[$key]}\n"
 else
-echo -ne "||"
+echo -ne "${iresu[$key]}||"
 fi
 done
 ((count%2!=0))&&echo
@@ -2360,12 +2358,11 @@ echo -ne "\r${sspeedtest[title]}\n"
 local count=0
 local keys=($(echo "${!sresu[@]}"|tr ' ' '\n'|sort -n))
 for key in "${keys[@]}";do
-echo -ne "${sresu[$key]}"
 ((count++))
 if ((count%2==0));then
-echo -ne "\r\n"
+echo -ne "\r${sresu[$key]}\n"
 else
-echo -ne "||"
+echo -ne "${sresu[$key]}||"
 fi
 done
 ((count%2!=0))&&echo
