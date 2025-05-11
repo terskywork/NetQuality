@@ -138,6 +138,8 @@ bash <(curl -Ls Net.Check.Place) -Ef
 
 ## Script Updates
 
+2025/05/11 14:00 Add report SVG image sharing link and fix some layout problems
+
 2025/04/23 18:00 Add -o to output report to file in ANSI/JSON/Text format, fixed the occasional stuck issue in routing test
 
 2025/04/21 22:15 Collapse routing duplicate information for full routing mode
