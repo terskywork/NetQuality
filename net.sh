@@ -1,5 +1,5 @@
 #!/bin/bash
-script_version="v2025-04-29"
+script_version="v2025-05-11"
 ADLines=25
 check_bash(){
 current_bash_version=$(bash --version|head -n 1|awk '{for(i=1;i<=NF;i++) if ($i ~ /^[0-9]+\.[0-9]+(\.[0-9]+)?/) print $i}')
@@ -723,7 +723,7 @@ local indent_spaces=$(printf '%*s' $indent)
 local result=""
 while [[ ${#text} -gt $max_len ]];do
 local cut_pos=$(echo "${text:0:max_len}"|awk '{print length($0)-length($NF)}')
-result+="${text:0:cut_pos}\n$indent_spaces"
+result+="${text:0:cut_pos}\n\r$indent_spaces"
 text="${text:$((cut_pos))}"
 done
 result+="$text"
@@ -851,13 +851,7 @@ local RESULT="$1"
 if [[ $RESULT == *"This network is transit-free."* ]];then
 conn[upstreams]=-2
 else
-local TABLE=$(echo "$RESULT"|awk '
-          BEGIN { inside_table=0 }
-          /<table id="upstreamTable"/ { inside_table=1 }
-          inside_table { print }
-          /<\/table>/ && inside_table { exit }
-        ')
-ROWS=$(echo "$TABLE"|grep "<tr>"|wc -l)
+local ROWS=$(echo "$RESULT"|sed -n '/<table id="upstreamTable"/,/<\/table>/p'|grep "<tr>"|wc -l)
 conn[upstreams]=$((ROWS-1))
 fi
 ROWS=$(echo "$RESULT"|sed -n '/<table id="peersTable"/,/<\/table>/p'|grep "<tr>"|wc -l)
@@ -1171,10 +1165,12 @@ fi
 pavg[$province$j$ipv]="$avg"
 midresu[$province$j$ipv]="$Font_Green$result$lost$Font_B$(printf '%-3s' "$avg")$Font_Suffix"
 done
+local prov_space=""
+[[ $mode_ping -eq 1 ]]&&prov_space=" "
 if [[ $YY == "cn" ]];then
-presu[$province]="$Font_Cyan${pshort[$province]}${midresu[${province}1$ipv]}$tmp_space${midresu[${province}2$ipv]}$tmp_space${midresu[${province}3$ipv]}"
+presu[$province]="$Font_Cyan${pshort[$province]}$prov_space${midresu[${province}1$ipv]}$tmp_space${midresu[${province}2$ipv]}$tmp_space${midresu[${province}3$ipv]}"
 else
-presu[$province]="$Font_Cyan${pcode[$province]}${midresu[${province}1$ipv]}$tmp_space${midresu[${province}2$ipv]}$tmp_space${midresu[${province}3$ipv]}"
+presu[$province]="$Font_Cyan${pcode[$province]}$prov_space${midresu[${province}1$ipv]}$tmp_space${midresu[${province}2$ipv]}$tmp_space${midresu[${province}3$ipv]}"
 fi
 done
 }
@@ -1218,12 +1214,15 @@ count=2
 echo -ne "\r${sdelay[title]}"
 fi
 for key in $(echo "${!pcode[@]}"|tr ' ' '\n'|sort -n);do
-echo -en "${presu[$key]}"
 ((count++))
-if ((count%resu_per_line==0));then
-echo -ne "\r\n"
+if ((resu_per_line==1));then
+echo -ne "\r${presu[$key]}\n"
+elif ((count%resu_per_line==0));then
+echo -ne "${presu[$key]}\n"
+elif ((count%resu_per_line==1));then
+echo -ne "\r${presu[$key]} "
 else
-echo -ne " "
+echo -ne "${presu[$key]} "
 fi
 done
 ((count%resu_per_line!=0))&&echo
@@ -2221,12 +2220,11 @@ echo -ne "\r${siperf[title]}\n"
 local count=0
 local keys=($(echo "${!icity[@]}"|tr ' ' '\n'|sort -n))
 for key in "${keys[@]}";do
-echo -ne "${iresu[$key]}"
 ((count++))
 if ((count%2==0));then
-echo -ne "\r\n"
+echo -ne "${iresu[$key]}\n"
 else
-echo -ne "||"
+echo -ne "\r${iresu[$key]}||"
 fi
 done
 ((count%2!=0))&&echo
@@ -2360,12 +2358,11 @@ echo -ne "\r${sspeedtest[title]}\n"
 local count=0
 local keys=($(echo "${!sresu[@]}"|tr ' ' '\n'|sort -n))
 for key in "${keys[@]}";do
-echo -ne "${sresu[$key]}"
 ((count++))
 if ((count%2==0));then
-echo -ne "\r\n"
+echo -ne "${sresu[$key]}\n"
 else
-echo -ne "||"
+echo -ne "\r${sresu[$key]}||"
 fi
 done
 ((count%2!=0))&&echo
@@ -2512,7 +2509,7 @@ local as_name="$as_name_style$raw_as_name$reset_style"
 clenth=$((clenth+max_len+1))
 if ((clenth>81));then
 clenth=$((max_len+1))
-echo -e "${conn[asn]}\n${conn[org]}"
+echo -ne "\r${conn[asn]}\n\r${conn[org]}\n"
 conn[asn]="$as_number "
 conn[org]="$as_name "
 else
@@ -2520,8 +2517,8 @@ conn[asn]="${conn[asn]}$as_number "
 conn[org]="${conn[org]}$as_name "
 fi
 done
-[[ -n ${conn[asn]} ]]&&echo -e "${conn[asn]}"
-[[ -n ${conn[org]} ]]&&echo -e "${conn[org]}"
+[[ -n ${conn[asn]} ]]&&echo -ne "\r${conn[asn]}\n"
+[[ -n ${conn[org]} ]]&&echo -ne "\r${conn[org]}\n"
 }
 show_tail(){
 echo -ne "\r$(printf '%80s'|tr ' ' '=')\n"
@@ -2875,8 +2872,10 @@ local net_report=$(show_head
 [[ $mode_skip != *"6"* && $2 -eq 4 ]]&&show_speedtest
 [[ $mode_skip != *"7"* ]]&&show_iperf
 show_tail)
-[[ mode_json -eq 1 || mode_output -eq 1 ]]&&save_json $2
+save_json $2
+report_link=$(curl -$2 -s -X POST http://upload.check.place -d "type=net" --data-urlencode "json=$netdata" --data-urlencode "content=$net_report")
 [[ mode_json -eq 0 ]]&&echo -ne "\r$net_report\n"
+[[ mode_json -eq 0 && $report_link == *"https://Report.Check.Place/"* ]]&&echo -ne "\r${stail[link]}$report_link$Font_Suffix\n"
 [[ mode_json -eq 1 ]]&&echo -ne "\r$netdata\n"
 echo -ne "\r\n"
 if [[ mode_output -eq 1 ]];then
