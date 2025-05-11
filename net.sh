@@ -565,10 +565,6 @@ Firefox)UA_Browser="Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:${version%%.*})
 Edge)UA_Browser="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${version%.*}.0.0 Safari/537.36 Edg/$version"
 esac
 }
-adapt_locale(){
-local ifunicode=$(printf '\u2800')
-[[ ${#ifunicode} -gt 3 ]]&&export LC_CTYPE=en_US.UTF-8 2>/dev/null
-}
 check_connectivity(){
 local url="https://www.google.com/generate_204"
 local timeout=2
@@ -2889,7 +2885,7 @@ esac
 fi
 }
 generate_random_user_agent
-adapt_locale
+export LC_CTYPE=en_US.UTF-8 2>/dev/null
 check_connectivity
 get_ipv4
 get_ipv6
